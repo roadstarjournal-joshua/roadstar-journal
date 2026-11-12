@@ -1,5 +1,6 @@
 // Photo uploads from the writer's desk go into the public Vercel Blob store.
 //   POST /api/upload  (body: the image; headers: content-type, x-filename)  -> { id, url, sizeBytes, contentType }
+import './_lib/env.js';
 import { put } from '@vercel/blob';
 import { json, fail, httpError } from './_lib/db.js';
 import { context } from './_lib/auth.js';
@@ -22,7 +23,7 @@ export default {
       const ext = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' }[type];
       let blob;
       try {
-        blob = await put('photos/' + name + '.' + ext, body, { access: 'public', contentType: type, addRandomSuffix: true });
+        blob = await put('photos/' + name + '.' + ext, body, Object.assign({ access: 'public', contentType: type, addRandomSuffix: true }, process.env.BLOB_READ_WRITE_TOKEN ? { token: process.env.BLOB_READ_WRITE_TOKEN } : {}));
       } catch (e) {
         console.error('blob put failed', e);
         throw httpError(503, 'Photo storage isn’t connected: in Vercel, open Storage, create a public Blob store, connect it to this project, then redeploy. (' + (e.message || 'upload failed') + ')');

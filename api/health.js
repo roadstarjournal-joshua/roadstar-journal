@@ -1,6 +1,7 @@
 // A plain check that the live site is wired up: open roadstarjournal.com/api/health in a browser.
 // It shows whether the database answers (and that it's Neon), whether sign-in is reachable and whether
 // photo storage is connected. It never shows passwords or connection strings.
+import { found, relatedNames } from './_lib/env.js';
 import { sql, ensureSchema, json } from './_lib/db.js';
 import { authBase } from './_lib/auth.js';
 
@@ -38,6 +39,9 @@ export default {
       try { out.signIn.accounts = (await sql()`select count(*)::int as n from neon_auth."user"`)[0].n; } catch (e) { out.signIn.accounts = null; }
     }
     out.photos.configured = !!(process.env.BLOB_STORE_ID || process.env.BLOB_READ_WRITE_TOKEN);
+    // Which Vercel settings were used, by name only (values are never shown).
+    out.settingsUsed = { database: found.DATABASE_URL, signIn: found.NEON_AUTH_BASE_URL, photos: found.BLOB_READ_WRITE_TOKEN || found.BLOB_STORE_ID };
+    out.settingsSeen = relatedNames();
     out.ok = !!(out.database.connected && out.signIn.reachable && out.photos.configured);
     return json(out);
   }

@@ -5,6 +5,7 @@
 //   editor / writer = set by the owner in Writer's desk, Team (stored in rs_roles)
 //   reader = any other signed-in account
 // Accounts whose email isn't confirmed get no staff access.
+import './env.js';
 import { sql, ensureSchema } from './db.js';
 
 export function authBase() {

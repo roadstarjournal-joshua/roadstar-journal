@@ -1,6 +1,7 @@
 // Database access for RoadStar: one Neon Postgres database, connected by Vercel (DATABASE_URL).
 // Every page, story, draft, profile and score is a JSON document in rs_docs, addressed by a path
 // such as posts/<slug> or desk/<writer id>/stories/<story id>, the same paths the site already uses.
+import './env.js';
 import { neon } from '@neondatabase/serverless';
 import { SEED } from './seed.js';
 
@@ -8,7 +9,7 @@ let client = null;
 export function sql() {
   if (!client) {
     const url = process.env.DATABASE_URL || process.env.POSTGRES_URL;
-    if (!url) throw httpError(503, 'The database isn’t connected: DATABASE_URL is missing. Connect Neon to this Vercel project, then redeploy.');
+    if (!url) throw httpError(503, 'The database isn’t connected: no DATABASE_URL setting (plain or prefixed) was found. Connect Neon to this Vercel project, then redeploy.');
     client = neon(url);
   }
   return client;
