@@ -364,7 +364,7 @@ main{flex:1}
 .ed-toast a{color:#fff}
 
 /* writer's desk */
-.n-desk{padding:32px 0}
+.n-desk{padding-top:32px;padding-bottom:32px}
 .n-desk table{width:100%;border-collapse:collapse;font-size:15px}
 .n-desk th{text-align:left;padding:8px 8px 10px 0;border-bottom:2px solid var(--ink)}
 .n-desk td{padding:12px 8px 12px 0;border-bottom:1px solid var(--hair);vertical-align:top}
@@ -563,3 +563,22 @@ table.board tr.me td{font-weight:700}
 .btnrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
 
 @media (prefers-reduced-motion:reduce){.gain{transition:none}}
+
+
+/* live sign-in and staff access */
+.n-signin{max-width:440px;margin:8px 0 20px;padding:24px;border-radius:var(--radius-lg);background:var(--surface)}
+.n-signin h2,.n-signin h3{margin:0 0 6px}
+.n-signin>p{margin:0 0 16px}
+.n-signin .field input,.n-signin .field select{width:100%;height:44px;padding:0 12px;border:1.5px solid var(--hair);border-radius:var(--radius-sm);background:var(--bg);font:inherit;font-size:16px;color:var(--ink)}
+.n-signin .field input:focus-visible,.n-signin .field select:focus-visible{outline:2px solid var(--ink);outline-offset:1px;border-color:var(--ink)}
+.n-signin .field .hint{font-size:13px;color:var(--ink-muted)}
+.n-signin>.rs-btn{width:100%;justify-content:center;margin-top:4px}
+.n-signin .alt{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:16px;font-size:14px}
+.n-signin .alt button{border:0;background:none;padding:0;font:inherit;font-weight:600;text-decoration:underline;text-underline-offset:3px;cursor:pointer;color:var(--ink)}
+.n-signin .err{margin:0;font-weight:600;font-size:14px;color:var(--accent)}
+.n-signin .err:not(:empty){margin:0 0 14px}
+.n-signin .ok{margin:0 0 14px;font-weight:600;font-size:14px;color:var(--ink)}
+.n-access{margin:0 0 36px}
+.n-access>p{max-width:72ch}
+.n-access select{height:36px;padding:0 8px;border:1.5px solid var(--hair);border-radius:var(--radius-sm);background:var(--bg);font:inherit;font-size:14px;color:var(--ink)}
+.n-addstaff{margin-top:24px}

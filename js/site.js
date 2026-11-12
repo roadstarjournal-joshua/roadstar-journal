@@ -13,7 +13,31 @@ const isStaff = () => isEditor() || me.role === 'writer';
 
 // ---------- helpers ----------
 function el(tag, cls, text){ const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
-function link(href, cls, text){ const a = el('a', cls, text); a.href = href; return a; }
+function link(href, cls, text){ const a = el('a', cls, text); a.href = pathHref(href); return a; }
+// ---------- addresses ----------
+// The live site (window.RS_LIVE) uses real page addresses such as /story/<slug>; the prototype and test file keep #story-<slug>.
+const LIVE_URLS = !!window.RS_LIVE;
+const PATH_PREFIXES = ['edit-post', 'ten-tenths', 'story', 'author', 'tag', 'desk', 'new', 'edit', 'profile'];
+function routeToPath(h){
+  h = String(h || '').replace(/^#/, '');
+  if (!h || h === 'home') return '/';
+  for (const p of PATH_PREFIXES) if (h.indexOf(p + '-') === 0) return '/' + p + '/' + encodeURIComponent(h.slice(p.length + 1));
+  return '/' + h;
+}
+function pathToRoute(path){
+  const segs = String(path || '/').split('/').filter(Boolean).map(x => { try { return decodeURIComponent(x); } catch (e) { return x; } });
+  if (!segs.length) return 'home';
+  if (segs.length > 1 && PATH_PREFIXES.includes(segs[0])) return segs[0] + '-' + segs.slice(1).join('/');
+  return segs.join('-');
+}
+function pathHref(href){ return LIVE_URLS && typeof href === 'string' && href[0] === '#' ? routeToPath(href) : href; }
+function currentRoute(){ return LIVE_URLS ? pathToRoute(location.pathname) : (location.hash || '#home').slice(1); }
+function navTo(h, replace){
+  if (!LIVE_URLS) { if (replace) location.replace(h); else location.hash = h; return; }
+  const p = routeToPath(h);
+  if (replace) history.replaceState(null, '', p); else if (p !== location.pathname) history.pushState(null, '', p);
+  route();
+}
 function fmtDate(ms){ return new Date(ms).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
 function fmtWhen(ms){ return new Date(ms).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); }
 function ago(ms){ const m = Math.round((Date.now() - ms) / 60000); if (m < 1) return 'just now'; if (m < 60) return m + ' min ago'; const h = Math.round(m / 60); if (h < 24) return h + ' hr ago'; return fmtDate(ms); }
@@ -172,7 +196,7 @@ function armDue(){
 })().then(() => { if (window.CMS) window.CMS.start(); });
 function loadingBlock(){
   const d = el('div', 'n-empty');
-  d.textContent = loadNote === 'unavailable' ? 'Stories can’t be loaded in this view. Open the page on claude.ai while signed in.' :
+  d.textContent = loadNote === 'unavailable' ? (LIVE_URLS ? 'Stories can’t be loaded right now. Try again in a minute.' : 'Stories can’t be loaded in this view. Open the page on claude.ai while signed in.') :
     loadNote === 'slow' ? 'Stories are taking longer than usual to load. They’ll appear here as soon as they arrive.' :
     loadNote === 'error' ? 'Stories couldn’t be loaded right now. Try again in a minute.' : 'Loading stories…';
   return d;
@@ -344,6 +368,7 @@ const TZ = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZon
 const TAG_SUGGEST = (() => { const out = []; try { String(BANK_SRC).trim().split('\n').forEach(l => { const parts = l.split('|'); const mk = (parts[0] || '').trim(); if (!mk) return; out.push(mk); (parts[2] || '').split(',').forEach(m => { m = m.trim(); if (m) out.push(mk + ' ' + m); }); }); } catch (e) {} return out; })();
 let bootDone = false, ensured = false, deskTab = null, deskTabPicked = false;
 const DEMO = !!window.RS_DEMO;
+const LIVE = !!window.RS_AUTH; // live site: real accounts through Neon Auth
 const desk = {}; const deskSubs = new Set(); const deskLoaded = new Set();
 let ed = null;
 const clone = o => JSON.parse(JSON.stringify(o));
@@ -415,16 +440,18 @@ function cmsRoute(h){
   if (h === 'staff') { current = 'staff'; show('pg-desk'); renderStaff(); return true; }
   if (h === 'desk' || h.indexOf('desk-') === 0) { current = 'desk'; if (h !== 'desk') { deskTab = h.slice(5); deskTabPicked = true; } show('pg-desk'); renderDesk(); return true; }
   if (h === 'write') { current = 'write'; show('pg-write'); renderChooser(); return true; }
-  if (h.indexOf('new-') === 0) { current = 'write'; show('pg-write'); createStory(h.slice(4)); return true; }
+  if (h.indexOf('new-') === 0) { current = 'new:' + h.slice(4); show('pg-write'); createStory(h.slice(4)); return true; }
   if (h.indexOf('edit-post-') === 0) { current = 'editpost:' + h.slice(10); show('pg-write'); openFromPost(h.slice(10)); return true; }
   if (h.indexOf('edit-') === 0) { current = 'edit:' + h.slice(5); show('pg-write'); renderEditor(h.slice(5)); return true; }
   if (h === 'profile' || h.indexOf('profile-') === 0) { current = 'profile:' + (h.slice(8) || ''); show('pg-desk'); renderProfile(h.slice(8) || me.id); return true; }
   return false;
 }
 function cmsRerender(cur){
+  if (LIVE) { const a = document.activeElement; if (a && a.closest && a.closest('.n-signin, .n-access')) return; }
   if (cur === 'staff') renderStaff();
   else if (cur === 'desk') renderDesk();
   else if (cur === 'write') renderChooser();
+  else if (cur.indexOf('new:') === 0) { if (newWait && !creating) { const t = newWait; newWait = null; createStory(t); } }
   else if (cur.indexOf('edit:') === 0) { if (ed && ed.sid === cur.slice(5)) ed.refresh(); else renderEditor(cur.slice(5)); }
   else if (cur.indexOf('editpost:') === 0) openFromPost(cur.slice(9));
   else if (cur.indexOf('profile:') === 0) renderProfile(cur.slice(8) || me.id, true);
@@ -433,11 +460,193 @@ function leaving(){ if (ed) { ed.flush(); ed.destroy(); ed = null; } }
 window.addEventListener('beforeunload', e => { if (ed && ed.unsaved()) { ed.flush(); e.preventDefault(); e.returnValue = ''; } });
 
 // ---------- staff sign-in ----------
+// ---------- live sign-in (Neon Auth) ----------
+const authUI = { mode: 'in', email: '', note: '' };
+let lastAuthBox = null, accessEl = null;
+const authKey = () => authUI.mode + '|' + authUI.note;
+const authBoxKept = () => (lastAuthBox && lastAuthBox.dataset.key === authKey() ? lastAuthBox : authBox());
+function authError(e){
+  const m = String((e && e.message) || '');
+  if (/invalid email or password|invalid password|user not found|credential/i.test(m)) return 'That email and password don’t match an account.';
+  if (/sign ?up is not enabled|disabled/i.test(m)) return 'New accounts are switched off. Ask the RoadStar owner to create your account.';
+  if (/already exists|already registered/i.test(m)) return 'There’s already an account with that email. Sign in instead.';
+  if (/password.*(short|length|at least)/i.test(m)) return 'Use a password of at least 8 characters.';
+  if (/invalid otp|otp|code/i.test(m) && /invalid|expired|incorrect/i.test(m)) return 'That code didn’t work. Check it, or send a new one.';
+  if (/too many|rate/i.test(m)) return 'Too many tries. Wait a minute, then try again.';
+  return m || 'Something went wrong. Try again.';
+}
+async function afterSignIn(){
+  let s = null; try { s = await fetch('/api/me', { credentials: 'same-origin', headers: { accept: 'application/json' } }).then(r => r.json()); } catch (e) {}
+  location.href = s && ['writer', 'editor', 'owner'].includes(s.role) ? '/desk' : '/staff';
+}
+function authBox(){
+  const A = window.RS_AUTH; const m = authUI.mode;
+  const box = el('form', 'n-signin'); box.noValidate = true; box.dataset.key = authKey(); lastAuthBox = box;
+  const err = el('p', 'err'); err.setAttribute('role', 'alert');
+  const go = mode => { authUI.mode = mode; authUI.note = ''; renderStaff(); };
+  const email = inp(authUI.email, 'you@example.com', 'email'); email.autocomplete = 'email'; email.required = true;
+  const pass = inp('', '', 'password'); pass.required = true;
+  const name = inp('', 'Your name'); name.autocomplete = 'name';
+  const code = inp('', '6-digit code'); code.inputMode = 'numeric'; code.autocomplete = 'one-time-code';
+  const primary = el('button', 'rs-btn rs-btn--lg rs-btn--solid'); primary.type = 'submit';
+  const alt = el('div', 'alt');
+  const altBtn = (text, fn) => { const b = el('button', '', text); b.type = 'button'; b.onclick = fn; alt.appendChild(b); return b; };
+  let submit = null;
+  const head = (t, p) => { box.appendChild(el('h2', 'h3', t)); if (p) box.appendChild(el('p', 'muted', p)); };
+  if (authUI.note) box.appendChild(el('p', 'ok', authUI.note));
+  box.appendChild(err);
+  if (m === 'in') {
+    head('Sign in', 'For RoadStar writers, editors and the owner.');
+    pass.autocomplete = 'current-password';
+    box.appendChild(field('Email', email)); box.appendChild(field('Password', pass));
+    primary.textContent = 'Sign in';
+    submit = async () => {
+      authUI.email = email.value.trim();
+      try { await A.signIn(authUI.email, pass.value); await afterSignIn(); }
+      catch (e) {
+        if (e.status === 403 || /not verified/i.test(e.message)) { try { await A.sendCode(authUI.email, 'email-verification'); } catch (x) {} authUI.mode = 'verify'; authUI.note = 'Confirm your email first. We sent a code to ' + authUI.email + '.'; renderStaff(); return; }
+        throw e;
+      }
+    };
+    altBtn('Forgot your password?', () => { authUI.email = email.value.trim(); go('forgot'); });
+    altBtn('New to the team? Create your account', () => { authUI.email = email.value.trim(); go('up'); });
+  } else if (m === 'up') {
+    head('Create your account', 'Use the email the RoadStar owner knows you by. The owner then gives your account a role.');
+    pass.autocomplete = 'new-password'; pass.minLength = 8;
+    box.appendChild(field('Name', name)); box.appendChild(field('Email', email)); box.appendChild(field('Password', pass, 'At least 8 characters.'));
+    primary.textContent = 'Create account';
+    submit = async () => {
+      authUI.email = email.value.trim();
+      if (pass.value.length < 8) throw new Error('Use a password of at least 8 characters.');
+      const r = await A.signUp(name.value.trim() || authUI.email.split('@')[0], authUI.email, pass.value);
+      const u = r && r.user;
+      if (u && u.emailVerified) { await afterSignIn(); return; }
+      try { await A.sendCode(authUI.email, 'email-verification'); } catch (x) {}
+      authUI.mode = 'verify'; authUI.note = 'Account created. We sent a code to ' + authUI.email + ' to confirm it’s yours.'; renderStaff();
+    };
+    altBtn('Already have an account? Sign in', () => go('in'));
+  } else if (m === 'verify') {
+    head('Confirm your email', 'Enter the 6-digit code we emailed to ' + (authUI.email || 'you') + '. It may take a minute to arrive.');
+    if (!authUI.email) box.appendChild(field('Email', email));
+    box.appendChild(field('Code', code));
+    primary.textContent = 'Confirm email';
+    submit = async () => {
+      const em = authUI.email || email.value.trim(); authUI.email = em;
+      await A.verify(em, code.value.trim());
+      const s = await A.refresh();
+      if (s && s.signedIn) { await afterSignIn(); return; }
+      authUI.mode = 'in'; authUI.note = 'Email confirmed. Sign in to continue.'; renderStaff();
+    };
+    altBtn('Send a new code', async () => { try { await A.sendCode(authUI.email || email.value.trim(), 'email-verification'); err.textContent = ''; authUI.note = 'New code sent.'; renderStaff(); } catch (e) { err.textContent = authError(e); } });
+    altBtn('Back to sign in', () => go('in'));
+  } else if (m === 'forgot') {
+    head('Reset your password', 'We’ll email you a code to set a new password.');
+    box.appendChild(field('Email', email));
+    primary.textContent = 'Send code';
+    submit = async () => { authUI.email = email.value.trim(); await A.sendCode(authUI.email, 'forget-password'); authUI.mode = 'reset'; authUI.note = 'Code sent to ' + authUI.email + '.'; renderStaff(); };
+    altBtn('Back to sign in', () => go('in'));
+  } else if (m === 'reset') {
+    head('Set a new password', 'Enter the code we emailed to ' + authUI.email + ' and your new password.');
+    pass.autocomplete = 'new-password';
+    box.appendChild(field('Code', code)); box.appendChild(field('New password', pass, 'At least 8 characters.'));
+    primary.textContent = 'Set new password';
+    submit = async () => {
+      if (pass.value.length < 8) throw new Error('Use a password of at least 8 characters.');
+      await A.resetPassword(authUI.email, code.value.trim(), pass.value);
+      authUI.mode = 'in'; authUI.note = 'Password changed. Sign in with your new password.'; renderStaff();
+    };
+    altBtn('Send a new code', async () => { try { await A.sendCode(authUI.email, 'forget-password'); authUI.note = 'New code sent.'; renderStaff(); } catch (e) { err.textContent = authError(e); } });
+    altBtn('Back to sign in', () => go('in'));
+  }
+  box.appendChild(primary); box.appendChild(alt);
+  box.onsubmit = async ev => {
+    ev.preventDefault(); err.textContent = ''; primary.disabled = true;
+    try { await submit(); } catch (e) { err.textContent = authError(e); }
+    primary.disabled = false;
+  };
+  setTimeout(() => { const f = box.querySelector('input'); if (f && !f.value) f.focus(); }, 0);
+  return box;
+}
+function signOutBtn(){
+  return btn('Sign out', 'rs-btn rs-btn--lg rs-btn--ghost', async e => { e.target.disabled = true; try { await window.RS_AUTH.signOut(); } catch (x) {} location.href = '/staff'; });
+}
+function liveStaffHero(top){
+  const S = window.RS_AUTH.now() || { signedIn: false };
+  const label = S.user ? (S.user.name || S.user.email) : '';
+  if (!S.signedIn) { top.appendChild(el('p', 'body-l', 'Writers, editors and the owner sign in here to reach the writer’s desk.')); top.appendChild(authBoxKept()); return; }
+  if (S.user && !S.user.emailVerified) {
+    if (authUI.mode !== 'verify') { authUI.mode = 'verify'; authUI.email = S.user.email; }
+    top.appendChild(el('p', 'body-l', 'You’re signed in as ' + label + ', but your email isn’t confirmed yet.'));
+    top.appendChild(authBoxKept()); top.appendChild(signOutBtn()); return;
+  }
+  if (isStaff()) {
+    const who = el('div', 'who who--lg'); who.appendChild(avatar(me.id, myName(), 56)); const t = el('div');
+    t.appendChild(el('b', '', 'Signed in as ' + myName())); t.appendChild(el('span', 'rs-pill rs-pill--active', ROLE_NAME[me.role])); who.appendChild(t); top.appendChild(who);
+    const acts = el('div', 'n-acts'); acts.appendChild(link('#desk', 'rs-btn rs-btn--lg rs-btn--solid', 'Open the writer’s desk')); acts.appendChild(link('#profile', 'rs-btn rs-btn--lg rs-btn--outline', 'Edit your profile')); acts.appendChild(signOutBtn()); top.appendChild(acts);
+    return;
+  }
+  top.appendChild(el('p', 'body-l', 'You’re signed in as ' + label + '. This account can’t write for RoadStar yet: the owner gives it a role under Writer’s desk, then Team.'));
+  if (S.ownerExists === false) {
+    const n = el('div', 'card-note card-note--col');
+    n.appendChild(el('b', '', 'Setting up RoadStar?'));
+    n.appendChild(el('p', '', 'To make this the owner account, open the Neon Console, then Better Auth, then Users. Choose Make admin next to ' + (S.user.email || 'your email') + ', then sign out and sign in again.'));
+    top.appendChild(n);
+  }
+  top.appendChild(signOutBtn());
+}
+// owner's Staff access panel: every account that can sign in, and its role
+function liveAccessNode(){
+  const A = window.RS_AUTH; const box = el('section', 'n-access');
+  box.appendChild(el('h2', 'h3', 'Staff access'));
+  box.appendChild(el('p', 'muted', 'Everyone who has an account. Give someone a role to let them into the writer’s desk; set No access to take it away. Changes apply the next time they load a page.'));
+  const holder = el('div'); box.appendChild(holder);
+  const load = () => {
+    holder.textContent = ''; holder.appendChild(el('p', 'n-empty', 'Loading accounts…'));
+    A.team.list().then(j => {
+      holder.textContent = '';
+      const users = (j && j.users) || [];
+      if (!users.length) { holder.appendChild(el('p', 'n-empty', 'No accounts yet.')); return; }
+      const rows = users.map(u => {
+        const tr = el('tr'); const td = el('td'); const who = el('div', 'who'); who.appendChild(avatar(u.id, u.name || u.email, 32)); const st = el('div', 'stack'); st.appendChild(el('b', '', u.name || u.email)); st.appendChild(el('span', 'caption muted', u.email)); who.appendChild(st); td.appendChild(who); tr.appendChild(td);
+        tr.appendChild(el('td', '', u.emailVerified ? 'Confirmed' : 'Not yet'));
+        const rc = el('td');
+        if (u.owner) rc.appendChild(el('b', '', 'Owner'));
+        else {
+          const s = sel([['none', 'No access'], ['writer', 'Writer'], ['editor', 'Editor']], u.role || 'none');
+          s.setAttribute('aria-label', 'Role for ' + (u.name || u.email));
+          s.onchange = async () => { s.disabled = true; try { await A.team.setRole(u.id, s.value); toast(s.value === 'none' ? 'Access removed.' : 'Role updated to ' + ROLE_NAME[s.value] + '.'); } catch (e) { toast('That didn’t save: ' + authError(e)); load(); } s.disabled = false; };
+          rc.appendChild(s);
+        }
+        tr.appendChild(rc); return tr;
+      });
+      holder.appendChild(table(['Account', 'Email', 'Role'], rows));
+    }).catch(e => { holder.textContent = ''; holder.appendChild(el('p', 'n-empty', 'Accounts couldn’t be loaded: ' + authError(e))); });
+  };
+  load();
+  const f = el('form', 'n-signin n-addstaff'); f.noValidate = true;
+  f.appendChild(el('h3', 'h3', 'Add a staff account'));
+  f.appendChild(el('p', 'muted', 'Creates the account with a temporary password. Send it to them; they sign in at roadstarjournal.com/staff, confirm their email with a code, and can change the password with Forgot your password.'));
+  const err = el('p', 'err'); err.setAttribute('role', 'alert'); f.appendChild(err);
+  const nm = inp('', 'Their name'); const em = inp('', 'name@example.com', 'email'); const pw = inp('', 'At least 8 characters'); const rl = sel([['writer', 'Writer'], ['editor', 'Editor']], 'writer');
+  f.appendChild(field('Name', nm)); f.appendChild(field('Email', em)); f.appendChild(field('Temporary password', pw)); f.appendChild(field('Role', rl));
+  const b = el('button', 'rs-btn rs-btn--lg rs-btn--solid', 'Create account'); b.type = 'submit'; f.appendChild(b);
+  f.onsubmit = async ev => {
+    ev.preventDefault(); err.textContent = '';
+    if (!nm.value.trim() || !em.value.trim() || pw.value.length < 8) { err.textContent = 'Add a name, an email and a temporary password of at least 8 characters.'; return; }
+    b.disabled = true;
+    try { await A.team.create({ name: nm.value.trim(), email: em.value.trim(), password: pw.value, role: rl.value }); toast('Account created for ' + em.value.trim() + '.'); nm.value = ''; em.value = ''; pw.value = ''; load(); }
+    catch (e) { err.textContent = authError(e); }
+    b.disabled = false;
+  };
+  box.appendChild(f);
+  return box;
+}
 function renderStaff(){
   const pg = $('pg-desk'); pg.textContent = ''; document.title = 'Staff sign-in · RoadStar';
   const c = el('div', 'n-container'); pg.appendChild(c);
   const top = el('div', 'n-staff-hero'); top.appendChild(el('h1', 'd-l', 'Staff sign-in')); c.appendChild(top);
   if (!bootDone) top.appendChild(el('p', 'body-l', 'Checking who you are…'));
+  else if (LIVE) liveStaffHero(top);
   else if (!db) top.appendChild(el('p', 'body-l', 'Sign in to Claude with the account RoadStar was shared with, then open this page again.'));
   else if (isStaff()) {
     const who = el('div', 'who who--lg'); who.appendChild(avatar(me.id, myName(), 56)); const t = el('div');
@@ -447,7 +656,7 @@ function renderStaff(){
     top.appendChild(el('p', 'body-l', 'You’re signed in' + (me.name ? ' as ' + me.name : '') + '. If RoadStar was shared with you as a writer, open the desk to get started.'));
     const note = el('p', 'ed-msg'); const b = btn('Open the writer’s desk', 'rs-btn rs-btn--lg rs-btn--solid', async () => {
       b.disabled = true; me.role = 'writer'; ensured = false;
-      if (await ensureStaff()) { startStaff(); location.hash = '#desk'; } else { me.role = 'reader'; b.disabled = false; note.textContent = 'This account can read RoadStar but can’t write for it. Ask the owner to share RoadStar with you as a Contributor.'; }
+      if (await ensureStaff()) { startStaff(); navTo('#desk'); } else { me.role = 'reader'; b.disabled = false; note.textContent = 'This account can read RoadStar but can’t write for it. Ask the owner to share RoadStar with you as a Contributor.'; }
     }); top.appendChild(b); top.appendChild(note);
   } else {
     top.appendChild(el('p', 'body-l', DEMO ? 'You’re browsing as a reader. To try the writer’s desk, open the Test version menu at the bottom left of the page and switch to Writer or Editor.' : 'You’re signed in' + (me.name ? ' as ' + me.name : '') + '. This account can read RoadStar but can’t write for it. Ask the RoadStar owner to add you as a writer or an editor.'));
@@ -455,7 +664,7 @@ function renderStaff(){
   const r = el('section', 'n-row'); r.style.borderBottom = '0'; r.appendChild(rowHead('Who can do what'));
   const g = el('div', 'n-roles'); ['writer', 'editor', 'owner'].forEach(k => { const d = el('div', me.role === k ? 'on' : ''); d.appendChild(el('h3', 'h3', ROLE_NAME[k])); d.appendChild(el('p', '', ROLE_ABOUT[k])); g.appendChild(d); });
   r.appendChild(g);
-  r.appendChild(el('p', 'muted body-s n-fine', DEMO ? 'In this test version, the Test version menu at the bottom left switches between roles, and everything you write stays in this browser. At launch, staff sign in with their RoadStar account.' : 'In this preview, sign-in runs through the Claude account RoadStar is shared with: share it as a Contributor to add a writer, or as an Editor to add an editor. At launch, staff sign in with their RoadStar account and keep the same roles.'));
+  r.appendChild(el('p', 'muted body-s n-fine', LIVE ? 'Staff sign in with their email and password. The owner gives each account a role under Writer’s desk, then Team, and can take it away there too.' : DEMO ? 'In this test version, the Test version menu at the bottom left switches between roles, and everything you write stays in this browser. At launch, staff sign in with their RoadStar account.' : 'In this preview, sign-in runs through the Claude account RoadStar is shared with: share it as a Contributor to add a writer, or as an Editor to add an editor. At launch, staff sign in with their RoadStar account and keep the same roles.'));
   c.appendChild(r);
 }
 
@@ -514,7 +723,9 @@ function renderDesk(){
 }
 function teamNode(){
   const w = el('div');
-  if (me.role === 'owner') {
+  if (me.role === 'owner' && LIVE) { if (!accessEl) accessEl = liveAccessNode(); w.appendChild(accessEl); }
+  if (LIVE && me.role === 'owner') w.appendChild(el('h2', 'h3', 'Profiles and bylines'));
+  if (me.role === 'owner' && !LIVE) {
     const n = el('div', 'card-note card-note--col');
     n.appendChild(el('p', '', DEMO ? 'In this test version, everyone who opens the writer’s desk in this browser appears here. At launch, the owner adds writers and editors by giving their RoadStar accounts a staff role.' : 'To add someone, share RoadStar with them from Claude. Choose Contributor for a writer or Editor for an editor. They appear here the first time they open the writer’s desk.'));
     if (!DEMO) n.appendChild(el('p', 'muted', 'To remove someone, change their access in Claude, then switch off “Show on the team” in their profile.'));
@@ -597,16 +808,16 @@ function renderChooser(){
   Object.entries(TEMPLATES).forEach(([k, T]) => { const b = link('#new-' + k, 'chooser-card'); b.appendChild(el('span', 'label muted', SECTIONS[T.section])); b.appendChild(el('h2', 'h2', T.name)); b.appendChild(el('p', '', T.desc)); g.appendChild(b); });
   c.appendChild(g);
 }
-let creating = false;
+let creating = false, newWait = null; // newWait: a new story asked for before sign-in finished loading
 async function createStory(tpl){
   const pg = $('pg-write'); pg.textContent = '';
-  const gm = gateMsg(); if (gm) { pg.appendChild(gm); return; }
-  const T = TEMPLATES[tpl]; if (!T) { location.replace('#write'); return; }
+  const gm = gateMsg(); if (gm) { pg.appendChild(gm); if (!bootDone) newWait = tpl; return; }
+  const T = TEMPLATES[tpl]; if (!T) { navTo('#write', true); return; }
   if (creating) return; creating = true; pg.appendChild(msgPage('Setting up your story…'));
   const sid = newSid(); const now = Date.now();
   const data = { template: tpl, section: T.section, title: '', dek: '', blocks: clone(T.blocks), image: null, tags: [], seo: {}, featured: false, sample: false,
     authorId: me.id, status: 'draft', statusAt: now, notes: [], created: now, updated: now, updatedBy: me.id, postId: null, publishAt: null, lastVersionAt: 0 };
-  try { await db.doc(storyPath(me.id, sid)).set(data); desk[sid] = Object.assign({ id: sid, _uid: me.id }, data); creating = false; location.replace('#edit-' + sid); }
+  try { await db.doc(storyPath(me.id, sid)).set(data); desk[sid] = Object.assign({ id: sid, _uid: me.id }, data); creating = false; navTo('#edit-' + sid, true); }
   catch (e) { creating = false; pg.textContent = ''; pg.appendChild(msgPage('The story couldn’t be created. Check your connection and try again.', link('#write', 'rs-btn rs-btn--solid', 'Try again'))); }
 }
 const importing = new Set();
@@ -615,7 +826,7 @@ async function openFromPost(pid){
   const gm = gateMsg(); if (gm) { pg.textContent = ''; pg.appendChild(gm); return; }
   if (!posts || !deskReady()) { pg.textContent = ''; pg.appendChild(msgPage('Loading the story…')); return; }
   const ex = Object.values(desk).find(s => s.postId === pid);
-  if (ex) { location.replace('#edit-' + ex.id); return; }
+  if (ex) { navTo('#edit-' + ex.id, true); return; }
   if (!isEditor()) { pg.textContent = ''; pg.appendChild(msgPage('Only editors can change a published story.')); return; }
   const p = posts.find(x => x.id === pid); if (!p) { pg.textContent = ''; pg.appendChild(msgPage('That story wasn’t found.')); return; }
   if (importing.has(pid)) return; importing.add(pid);
@@ -626,7 +837,7 @@ async function openFromPost(pid){
   try {
     await db.doc(storyPath(me.id, sid)).set(data); desk[sid] = Object.assign({ id: sid, _uid: me.id }, data);
     db.doc(storyPath(me.id, sid) + '/versions/v' + now.toString(36) + rand4()).set({ at: now, by: me.id, label: 'Copied from the live story', content: contentOf(data) }).catch(() => {});
-    location.replace('#edit-' + sid);
+    navTo('#edit-' + sid, true);
   } catch (e) { importing.delete(pid); pg.textContent = ''; pg.appendChild(msgPage('The story couldn’t be opened for editing. Check your connection and try again.')); }
 }
 function storyTools(p){
@@ -1145,16 +1356,16 @@ function makeEditor(pg, s0){
     await addVersion(update ? 'Updated the live story' : when ? 'Scheduled for ' + fmtWhen(t) : 'Published', c);
     if (update) { toast('Story updated.', '#story-' + pid); refresh(); }
     else if (when) { toast('Scheduled for ' + fmtWhen(t) + '.'); refresh(); }
-    else { toast('Published.'); location.hash = '#story-' + pid; }
+    else { toast('Published.'); navTo('#story-' + pid); }
   });
   const doSchedule = () => { if (!ready()) return; scheduleModal(E.story.status === 'scheduled' ? E.story.publishAt : null, t => doPublish(t)); };
-  const doPublishNow = () => act(async () => { if (!ready()) return; const c = collect(); const pid = postId(c); await db.doc('posts/' + pid).set(buildPost(c, Date.now())); await writeStory({ status: 'published', postId: pid, publishAt: Date.now(), publishedBy: me.id }, true); await addVersion('Published', c); toast('Published.'); location.hash = '#story-' + pid; });
+  const doPublishNow = () => act(async () => { if (!ready()) return; const c = collect(); const pid = postId(c); await db.doc('posts/' + pid).set(buildPost(c, Date.now())); await writeStory({ status: 'published', postId: pid, publishAt: Date.now(), publishedBy: me.id }, true); await addVersion('Published', c); toast('Published.'); navTo('#story-' + pid); });
   const doUnpublish = label => confirmModal(label === 'unschedule' ? 'Unschedule this story' : 'Unpublish this story', label === 'unschedule' ? 'It won’t go live. It goes back to drafts, where you can schedule it again.' : 'Readers won’t be able to see it any more. It goes back to drafts with everything kept.', label === 'unschedule' ? 'Unschedule' : 'Unpublish', () => act(async () => {
     if (E.story.postId) await db.doc('posts/' + E.story.postId).delete(); await writeStory({ status: 'draft', publishAt: null }, true); toast(label === 'unschedule' ? 'Unscheduled.' : 'Unpublished. It’s back in drafts.'); refresh();
   }));
   const doDelete = () => confirmModal('Delete this story', 'This deletes the story and its saved versions for good. It can’t be undone.', 'Delete for good', () => act(async () => {
     try { const vs = await db.collection(path + '/versions').limit(200).get(); for (const d of vs.docs) await db.doc(path + '/versions/' + d.id).delete(); } catch (e) {}
-    await db.doc(path).delete(); clearBackup(); E.dirty = false; toast('Story deleted.'); location.hash = '#desk';
+    await db.doc(path).delete(); clearBackup(); E.dirty = false; toast('Story deleted.'); navTo('#desk');
   }));
   function versionsModal(){
     const m = modal('Version history', true); const list = el('div'); m.body.appendChild(list); list.appendChild(el('p', 'muted', 'Loading versions…'));
@@ -1259,7 +1470,7 @@ let modResult = null;
 function route(){
   closeMenus(); $('sheet').hidden = true; $('burger').setAttribute('aria-expanded', 'false');
   if (window.CMS) window.CMS.leaving();
-  const h = (location.hash || '#home').slice(1);
+  const h = currentRoute() || 'home';
   if (h === '' || h === 'home') { current = 'front'; show('pg-front'); renderFront(); }
   else if (SECTIONS[h]) { current = 'section:' + h; show('pg-section'); renderSection(h); }
   else if (h.indexOf('story-') === 0) { current = 'story:' + h.slice(6); show('pg-story'); renderStory(h.slice(6)); }
@@ -1281,6 +1492,24 @@ function rerender(){
   else if (current.indexOf('tag:') === 0) renderTag(current.slice(4));
   else if (window.CMS) window.CMS.rerender(current);
 }
-window.addEventListener('hashchange', route);
+if (LIVE_URLS) {
+  // old #links (bookmarks, shared links) move to their real address
+  if (location.hash.length > 1 && /^#[a-z]/.test(location.hash)) history.replaceState(null, '', routeToPath(location.hash));
+  document.querySelectorAll('a[href^="#"]').forEach(a => a.setAttribute('href', routeToPath(a.getAttribute('href'))));
+  window.addEventListener('popstate', route);
+  document.addEventListener('click', e => {
+    const a = e.target.closest && e.target.closest('a[href]');
+    if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || (a.target && a.target !== '_self') || a.hasAttribute('download')) return;
+    const raw = a.getAttribute('href') || ''; let h = null;
+    if (raw[0] === '#') h = raw.slice(1);
+    else {
+      let u; try { u = new URL(a.href); } catch (err) { return; }
+      if (u.origin !== location.origin || u.pathname.indexOf('/api/') === 0 || /\.[a-z0-9]{2,5}$/i.test(u.pathname)) return;
+      h = pathToRoute(u.pathname);
+    }
+    if (!h) return;
+    e.preventDefault(); navTo('#' + h);
+  });
+} else window.addEventListener('hashchange', route);
 route();
 })();
