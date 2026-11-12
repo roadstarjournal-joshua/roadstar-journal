@@ -395,6 +395,8 @@ main{flex:1}
 .n-callout img{display:block;height:32px;width:auto;margin-bottom:-2px}
 .n-footer nav{display:flex;flex-wrap:wrap;gap:6px 22px;margin:16px 0 10px}
 .n-footer nav button,.n-footer nav a{background:none;border:0;padding:0;font-weight:600;font-size:14px;text-decoration:underline;text-underline-offset:3px}
+.n-quiet{color:inherit;text-decoration:none;cursor:text}
+.n-quiet:focus-visible{outline:2px solid currentColor;outline-offset:2px;border-radius:2px}
 
 /* Ten Tenth's (game) styles, scoped by page */
 #pg-game{background:var(--smoke)}

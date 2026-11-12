@@ -1,8 +1,8 @@
 // Who is signed in, and their RoadStar role.
-//   GET /api/me                 -> { signedIn, user, role, ownerExists }
+//   GET /api/me                 -> { signedIn, user, role, ownerExists, signupOpen }
 //   GET /api/me?profiles=a,b    -> { profiles: { a: { id, name } } }  (names for the leaderboard and bylines)
 import { sql, ensureSchema, json, fail } from './_lib/db.js';
-import { context } from './_lib/auth.js';
+import { context, signupOpen } from './_lib/auth.js';
 
 export default {
   async fetch(req) {
@@ -11,10 +11,10 @@ export default {
       const ids = (u.searchParams.get('profiles') || '').split(',').map(s => s.trim()).filter(s => /^[A-Za-z0-9_.~-]{1,120}$/.test(s)).slice(0, 500);
       if (u.searchParams.has('profiles')) return json({ profiles: await profiles(ids) });
       const ctx = await context(req);
-      if (!ctx.uid) return json({ signedIn: false, user: null, role: null });
+      if (!ctx.uid) return json({ signedIn: false, user: null, role: null, signupOpen: signupOpen() });
       let ownerExists = null;
       if (ctx.role !== 'owner') ownerExists = await anyOwner();
-      return json({ signedIn: true, user: ctx.user, role: ctx.role, ownerExists });
+      return json({ signedIn: true, user: ctx.user, role: ctx.role, ownerExists, signupOpen: signupOpen() });
     } catch (e) {
       return fail(e);
     }

@@ -16,7 +16,7 @@ The first time the site runs on an empty database, it loads the 8 sample stories
 ## Before you upload (one time)
 
 1. **Neon, Settings, Better Auth, Domains:** add `https://roadstarjournal.com`, `https://www.roadstarjournal.com` and your project's `.vercel.app` address. Sign-in is refused from any address not listed.
-2. **Same page:** set Application Name to `RoadStar`, and turn on **Verify at Sign-up** with **Verification code**. Keep **Sign-up with Email** on until you've created your own account.
+2. **Same page:** set Application Name to `RoadStar`, turn on **Verify at Sign-up** with **Verification code**, and turn off **Allow Localhost**. Keep **Sign-up with Email** on until you've created your own account.
 3. **Vercel, Storage:** make sure there's a **public** Blob store connected to this project. Without it, photo uploads show an error; everything else works.
 
 ## Upload
@@ -35,14 +35,21 @@ Open **roadstarjournal.com/api/health**. You should see:
 
 If `signIn.configured` is false, Vercel hasn't picked up `NEON_AUTH_BASE_URL` yet: in Vercel open **Deployments**, then the menu on the latest one, then **Redeploy**.
 
-## Become the owner
+## Staff sign-in
 
-1. Go to **roadstarjournal.com/staff**, choose **Create your account**, and confirm your email with the code that's sent.
-2. In the Neon Console open **Better Auth, Users**, click the menu next to your email and choose **Make admin**.
-3. Back on the site, sign out and sign in again. You're the owner: the writer's desk opens, with a **Team** tab.
-4. In Neon, **Settings, Better Auth**, turn off **Sign-up with Email**. From then on, only you add accounts, from **Writer's desk, Team, Add a staff account**.
+There's no visible staff link on the site. The **©** at the bottom of every page opens the staff sign-in page, or go straight to **roadstarjournal.com/staff**. Staff pages are kept out of search results.
 
-(Alternative to step 2: add an environment variable `OWNER_EMAIL` with your email in Vercel, then redeploy.)
+New accounts are **switched off on the site**: the sign-in page has no "Create account" option and the server refuses sign-ups. The owner adds staff from **Writer's desk, Team, Add a staff account**; they confirm their email with a code the first time they sign in, and can set their own password with **Forgot your password?**
+
+## Become the owner (first setup only)
+
+1. In Vercel, **Settings, Environment Variables**, add `STAFF_SIGNUP` with the value `open`, then redeploy. This briefly allows "Create account".
+2. Go to **roadstarjournal.com/staff**, choose **Create your account**, and confirm your email with the code that's sent.
+3. In the Neon Console open **Better Auth, Users**, click the menu next to your email and choose **Make admin**.
+4. Back on the site, sign out and sign in again. You're the owner: the writer's desk opens, with a **Team** tab.
+5. Delete `STAFF_SIGNUP` in Vercel and redeploy. In Neon, **Settings, Better Auth**, turn off **Sign-up with Email** as well.
+
+(Alternative to step 3: add an environment variable `OWNER_EMAIL` with your email in Vercel, then redeploy.)
 
 ## Page addresses
 

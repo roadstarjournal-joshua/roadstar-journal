@@ -496,7 +496,8 @@ function authBox(){
   if (authUI.note) box.appendChild(el('p', 'ok', authUI.note));
   box.appendChild(err);
   if (m === 'in') {
-    head('Sign in', 'For RoadStar writers, editors and the owner.');
+    const open = !!(A.now() && A.now().signupOpen);
+    head('Sign in', open ? 'For RoadStar writers, editors and the owner.' : 'For RoadStar writers, editors and the owner. New writers get their account from the owner.');
     pass.autocomplete = 'current-password';
     box.appendChild(field('Email', email)); box.appendChild(field('Password', pass));
     primary.textContent = 'Sign in';
@@ -509,7 +510,11 @@ function authBox(){
       }
     };
     altBtn('Forgot your password?', () => { authUI.email = email.value.trim(); go('forgot'); });
-    altBtn('New to the team? Create your account', () => { authUI.email = email.value.trim(); go('up'); });
+    if (open) altBtn('New to the team? Create your account', () => { authUI.email = email.value.trim(); go('up'); });
+  } else if (m === 'up' && !(A.now() && A.now().signupOpen)) {
+    head('New accounts are switched off', 'Ask the RoadStar owner to create your account. You’ll get a code by email to confirm it the first time you sign in.');
+    altBtn('Back to sign in', () => go('in'));
+    primary.hidden = true;
   } else if (m === 'up') {
     head('Create your account', 'Use the email the RoadStar owner knows you by. The owner then gives your account a role.');
     pass.autocomplete = 'new-password'; pass.minLength = 8;

@@ -43,6 +43,10 @@ export async function getSession(req) {
   }
 }
 
+// New accounts can only be made by the owner (Writer's desk, Team) unless STAFF_SIGNUP=open is set in
+// Vercel's Environment Variables, which is only needed if there's no owner account at all.
+export const signupOpen = () => /^(open|on|yes|true|1)$/i.test(String(process.env.STAFF_SIGNUP || '').trim());
+
 export const isAdmin = u => String((u && u.role) || '').split(',').map(x => x.trim()).includes('admin');
 const ownerEmail = () => (process.env.OWNER_EMAIL || '').trim().toLowerCase();
 export const isOwnerUser = u => isAdmin(u) || (!!ownerEmail() && String((u && u.email) || '').toLowerCase() === ownerEmail());

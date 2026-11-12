@@ -26,7 +26,9 @@ export default {
         blob = await put('photos/' + name + '.' + ext, body, Object.assign({ access: 'public', contentType: type, addRandomSuffix: true }, process.env.BLOB_READ_WRITE_TOKEN ? { token: process.env.BLOB_READ_WRITE_TOKEN } : {}));
       } catch (e) {
         console.error('blob put failed', e);
-        throw httpError(503, 'Photo storage isn’t connected: in Vercel, open Storage, create a public Blob store, connect it to this project, then redeploy. (' + (e.message || 'upload failed') + ')');
+        const msg = String(e.message || '');
+        if (/private/i.test(msg)) throw httpError(503, 'Photo storage is set to Private, and photos on the site need a Public store. In Vercel, disconnect the private Blob store, create a Public one, connect it to this project, then redeploy.');
+        throw httpError(503, 'Photo storage isn’t connected: in Vercel, open Storage, create a Public Blob store, connect it to this project, then redeploy. (' + (msg || 'upload failed') + ')');
       }
       return json({ id: blob.pathname, url: blob.url, sizeBytes: body.length, contentType: type });
     } catch (e) {
