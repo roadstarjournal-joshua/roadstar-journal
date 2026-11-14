@@ -73,4 +73,10 @@ Search engines are still told not to index the site (`noindex` in `index.html` a
 
 - The AdSense code for `ca-pub-4327412662479506` is in the `<head>` of `index.html`. Every page on the site is that one file, so every page has it.
 - `ads.txt` (at roadstarjournal.com/ads.txt) lists the same publisher ID, as AdSense asks.
-- Before asking AdSense to review the site: replace the sample stories with real ones, write the Privacy, Terms and Contact text (the privacy policy must say Google and other vendors use ad cookies), and remove the `noindex` lines (in `index.html` and `vercel.json`) so the site is public.
+- Visitors from Europe, the UK and Switzerland need Google's consent message: AdSense, **Privacy & messaging, European regulations**.
+
+## Search engines
+
+- The site is open to search engines. Staff pages (`/staff`, `/desk`, the editor, profiles) send a `noindex` header so they're never listed.
+- `/sitemap.xml` (www.roadstarjournal.com/sitemap.xml) lists the public pages and every published story, built fresh from the database. Submit it once in Google Search Console.
+- `robots.txt` points search engines to the sitemap and keeps them out of `/api/`.

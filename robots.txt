@@ -1,3 +1,5 @@
 # RoadStar Journal
 User-agent: *
 Disallow: /api/
+
+Sitemap: https://www.roadstarjournal.com/sitemap.xml

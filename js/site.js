@@ -3,7 +3,7 @@
 const $ = id => document.getElementById(id);
 const SECTIONS = { news: 'News', reviews: 'Reviews', opinion: 'Opinion', features: 'Features' };
 const SECTION_DESC = { news: 'Reporting from the car world.', reviews: 'Buyer’s guides, drives and verdicts.', opinion: 'Columns and arguments from our writers.', features: 'Longer stories about the cars and people that matter.' };
-const BASE_PAGES = ['pg-front', 'pg-section', 'pg-story', 'pg-cross', 'pg-desk', 'pg-write', 'pg-game'];
+const BASE_PAGES = ['pg-front', 'pg-section', 'pg-story', 'pg-cross', 'pg-desk', 'pg-write', 'pg-game', 'pg-info'];
 const ROLE_NAME = { writer: 'Writer', editor: 'Editor', owner: 'Owner', reader: 'Reader' };
 let db = null, user = null, assets = null;
 let posts = null, staff = {}, staffLoaded = false, loadNote = '';
@@ -47,7 +47,10 @@ function rand4(){ return Math.random().toString(36).slice(2, 6); }
 function initials(name){ return String(name || '?').split(/\s+/).filter(Boolean).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?'; }
 function inline(s){
   s = esc(s || '');
-  s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (m, t, u) => '<a href="' + u + '" target="_blank" rel="noopener">' + t + '</a>');
+  s = s.replace(/\[([^\]]+)\]\(((?:https?:\/\/|mailto:)[^\s)]+|#[a-z0-9-]+)\)/g, (m, t, u) =>
+    u[0] === '#' ? '<a href="' + pathHref(u) + '">' + t + '</a>'
+    : u.indexOf('mailto:') === 0 ? '<a href="' + u + '">' + t + '</a>'
+    : '<a href="' + u + '" target="_blank" rel="noopener">' + t + '</a>');
   s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>').replace(/(^|[^*])\*([^*]+)\*/g, '$1<em>$2</em>');
   return s;
 }
@@ -328,16 +331,210 @@ function renderCross(){
   w.appendChild(g); c.appendChild(w);
 }
 
-// ---------- info panels (site) ----------
+// ---------- info pages: About, Contact, Terms, Privacy, Photo credits ----------
+// Each one is a real page at its own address (/about, /contact, /terms, /privacy, /credits).
+// Text uses the same simple format as stories: ## heading, ### subheading, "- " list items,
+// **bold**, [text](https://link), [text](mailto:address) and [text](#page).
+const CONTACT_EMAIL = 'roadstarjournal@gmail.com';
+const MAILTO = '[' + CONTACT_EMAIL + '](mailto:' + CONTACT_EMAIL + ')';
 const INFO = {
-  about: ['About RoadStar', ['RoadStar covers the car world for drivers: reporting, reviews, opinion and features, plus Ten Tenth’s, a daily car game. A daily crossword is on the way.', 'This is a draft of the site. Posts marked “Sample post” are placeholders to replace with your own stories.']],
-  contact: ['Contact', ['Contact details will go here before launch.']],
-  terms: ['Terms', ['Terms of use will go here before launch. Car names identify the vehicles discussed; RoadStar isn’t affiliated with any manufacturer.']],
-  privacy: ['Privacy', ['The privacy policy will go here before launch.']],
-  credits: ['Photo credits', ['Photos in sample posts and Ten Tenth’s come from Wikimedia Commons under free licences (CC BY, CC BY-SA, CC0 or public domain). Each photographer and licence are shown with the photo. We cropped some photos and blurred number plates and lettering; edited share-alike photos are shared under the same licence.']]
+  about: { title: 'About RoadStar', md: `
+RoadStar Journal is the news site of RoadStar Media, made for people who love to drive.
+
+We cover the car world from the driver’s seat: news from manufacturers and motorsport, reviews and buyer’s guides, opinion columns, and longer features about the cars and people that shaped driving.
+
+Every day there’s also Ten Tenth’s, our car game. Name the car from a close-up, then take on six rounds about its maker, its engines and its rivals. A daily crossword with car clues is on the way.
+
+RoadStar Media is building more for drivers, and the Journal is where it starts.
+
+Got a story, a correction or a question? [Get in touch](#contact).` },
+
+  contact: { title: 'Contact', dek: 'Story tips, corrections, press and advertising.', md: `
+The best way to reach RoadStar is by email: ${MAILTO}
+
+We read everything that comes in. To help us get to your message quickly, start the subject line with one of these:
+
+- **Tip:** a story we should cover. Links and photos help.
+- **Correction:** the story’s title and what we got wrong.
+- **Press:** press releases, launch invitations and review-car loans.
+- **Advertising:** advertising and partnerships.
+- **Photo:** if a photo on RoadStar is yours and it’s credited wrongly or used without your permission, tell us which story and we’ll fix it or take it down.
+- **Privacy:** requests about information we hold about you. Our [privacy policy](#privacy) explains what that is.
+
+Writers who’d like to contribute are welcome to email too, with a few links to your work.` },
+
+  terms: { title: 'Terms of use', updated: 'November 14, 2026', md: `
+These terms cover your use of RoadStar Journal at roadstarjournal.com (“RoadStar”, “we”, “us”), published by RoadStar Media. By using the site you agree to them. If you don’t agree, please don’t use the site.
+
+## Our content
+
+Stories, reviews, opinion columns, Ten Tenth’s, our own photos and the design of the site belong to RoadStar Media or the people who created them, and are protected by copyright.
+
+You’re welcome to read, share links to our stories, and quote short passages with credit to RoadStar and a link back. Please don’t copy whole stories, republish our content elsewhere or use it commercially without our written permission.
+
+Some photos are by other photographers and used under free licences such as Creative Commons. The photographer and licence are shown with each photo and on our [Photo credits](#credits) page, and those licences govern how you can reuse those photos.
+
+## Information, not advice
+
+Our stories, reviews and buyer’s guides are for information and entertainment. Prices, specifications, recalls and availability change, so check with the manufacturer, a dealer or a qualified mechanic before you buy, repair or modify a vehicle. Opinion columns are the writer’s own views.
+
+Nothing on RoadStar encourages unsafe or illegal driving. Obey the law, and save ten-tenths driving for the track.
+
+## Car names and trademarks
+
+Car makes, model names and logos are trademarks of their owners. We use them only to identify the vehicles we write about. RoadStar isn’t affiliated with or endorsed by any manufacturer unless a story says so.
+
+## Ten Tenth’s
+
+Ten Tenth’s is a free game, played for fun. There are no prizes unless we announce otherwise. Please don’t use bots or scripts to play it or to collect the answers. We may change, pause or end the game at any time.
+
+## Using the site responsibly
+
+Please don’t:
+
+- try to get into staff areas or accounts that aren’t yours
+- interfere with the site’s security or how it runs, including by overloading it
+- copy content in bulk with automated tools (normal search-engine indexing is fine)
+- use the site for anything unlawful
+
+## Staff accounts
+
+Staff accounts are by invitation from RoadStar. If you have one, keep your password to yourself and tell us right away if you think someone else has used your account. We can change or remove access at any time.
+
+## Ads and links to other sites
+
+RoadStar shows ads served by Google and other advertisers, and our stories link to other websites. We don’t control those ads or sites and aren’t responsible for their content, products or privacy practices. An ad on RoadStar isn’t an endorsement.
+
+## Corrections
+
+We work to get things right. If you spot a mistake, [tell us](#contact) and we’ll look into it.
+
+## No guarantees
+
+The site and everything on it are provided “as is” and “as available”. As far as the law allows, we make no promise that the site will always be available, error-free or secure, or that its content is complete or up to date.
+
+## Limits on our liability
+
+As far as the law allows, RoadStar Media isn’t liable for any indirect, incidental or consequential loss arising from your use of the site, or from decisions you make based on its content. Some places don’t allow these limits, so they may not apply to you.
+
+## Changes to these terms
+
+We may update these terms from time to time. The date at the top of this page shows the latest version, and using the site after a change means you accept the updated terms.
+
+## Governing law
+
+These terms are governed by the laws of the State of Texas, United States.
+
+## Contact
+
+Questions about these terms: ${MAILTO}` },
+
+  privacy: { title: 'Privacy policy', updated: 'November 14, 2026', md: `
+RoadStar Journal (roadstarjournal.com) is published by RoadStar Media. This policy explains what the site collects, why, who else receives it and the choices you have. If you have a question, email ${MAILTO}.
+
+## The short version
+
+- You don’t need an account to read RoadStar or play Ten Tenth’s, and we don’t ask readers for their name or email.
+- Your Ten Tenth’s progress is saved in your own browser. It isn’t sent to us.
+- We show ads from Google. Google and its partners use cookies to choose and measure those ads, including ads based on your visits to this and other websites. You can turn personalized ads off, as explained under Advertising below.
+
+## What we collect
+
+### When you read the site or play Ten Tenth’s
+
+- **Technical information.** Like every website, our servers receive your IP address, your browser and device type, the address of the page you asked for and the time. Our hosting provider keeps this in server logs for a limited time, to run the site and protect it from abuse.
+- **Ten Tenth’s progress.** Your answers, scores and streak are saved in your browser’s local storage on your own device. Clearing your browser’s data for this site deletes them.
+- **No tracking of our own.** We don’t use our own analytics or tracking cookies. The advertising cookies described below are set by Google and other ad companies.
+
+### When you email us
+
+We receive your email address and whatever you include in your message. We use it to reply and to act on your request, such as a correction or a photo credit.
+
+### If you’re on the RoadStar staff
+
+Writers and editors have accounts, which RoadStar creates by invitation. For these we keep your name, email address and password (stored only in scrambled, hashed form by our sign-in provider), the profile details you add (title, short bio and photo), the stories you write and edit, and a sign-in cookie that keeps you signed in. Your name, title, bio, photo and published stories appear publicly on the site. The writer’s desk also keeps a backup of an unsaved draft in your browser, so you don’t lose work.
+
+## Cookies and similar technologies
+
+- **Sign-in cookie:** set only when a staff member signs in, and needed for the writer’s desk.
+- **Browser storage:** used for Ten Tenth’s progress and for staff draft backups. It stays on your device.
+- **Advertising cookies:** set by Google and other ad companies to show and measure ads. See the next section.
+
+You can block or delete cookies in your browser settings. The site still works for reading if you do, but staff won’t be able to sign in.
+
+## Advertising
+
+RoadStar uses Google AdSense to show ads.
+
+- Third-party vendors, including Google, use cookies to serve ads based on your prior visits to this website or other websites.
+- Google’s use of advertising cookies enables it and its partners to serve ads to you based on your visits to this site and/or other sites on the internet.
+- You can opt out of personalized advertising by visiting Google’s [Ads Settings](https://www.google.com/settings/ads).
+- Other companies may also serve ads on RoadStar through Google. You can opt out of many third-party vendors’ use of cookies for personalized advertising at [www.aboutads.info/choices](https://www.aboutads.info/choices/), or, in Europe, at [www.youronlinechoices.eu](https://www.youronlinechoices.eu/).
+- Google explains how it uses information from websites that show its ads in [How Google uses information from sites or apps that use our services](https://policies.google.com/technologies/partner-sites).
+
+If you opt out, you’ll still see ads, but they won’t be based on your browsing. Ads that aren’t personalized can still use cookies for things like limiting how often you see the same ad and preventing fraud.
+
+If you visit from the European Economic Area, the United Kingdom or Switzerland, you’ll be asked whether you agree to cookies being used for personalized ads, and you can change your choice later.
+
+An ad on RoadStar isn’t an endorsement of the product or company it promotes.
+
+## Who else receives information
+
+We use these companies to run the site. They handle information only to provide their service to us:
+
+- **Vercel** hosts the site and stores its photos.
+- **Neon** runs our database and staff sign-in.
+- **Google** serves ads, as described above, and provides our email.
+
+We may also share information if the law requires it, or if it’s needed to protect RoadStar, our staff or our readers. We don’t sell the details our staff or the people who email us give us.
+
+## How long we keep information
+
+- **Server logs:** for a limited time, set by our hosting provider.
+- **Emails:** as long as we need them to deal with your message.
+- **Staff accounts:** while the account is active. When someone leaves, we remove their access, and delete their account if they ask.
+- **Ten Tenth’s progress:** on your device until you clear it.
+
+## Your choices and rights
+
+Depending on where you live, including the European Economic Area, the United Kingdom and some US states, you may have the right to ask what personal information we hold about you, to get a copy, to have it corrected or deleted, or to object to how it’s used. Email ${MAILTO} and we’ll respond within the time the law allows. We may need to confirm your identity first.
+
+Because readers don’t give us their names, most of what we hold is staff account details and emails people send us.
+
+## Children
+
+RoadStar is for a general audience and isn’t directed at children under 13. We don’t knowingly collect personal information from children under 13. If you believe a child has sent us personal information, email us and we’ll delete it.
+
+## Security
+
+The whole site uses encrypted connections (HTTPS). Staff passwords are stored only in hashed form, and the writer’s desk checks each person’s role before showing or changing anything. No website can promise perfect security, but we work to protect what we hold.
+
+## Changes to this policy
+
+When we change this policy, we’ll update the date at the top of this page.
+
+## Contact
+
+Questions or requests about privacy: ${MAILTO}` },
+
+  credits: { title: 'Photo credits', md: `
+Photos in sample posts and Ten Tenth’s come from Wikimedia Commons under free licences (CC BY, CC BY-SA, CC0 or public domain). Each photographer and licence are shown with the photo.
+
+We cropped some photos and blurred number plates and lettering. Edited share-alike photos are shared under the same licence.
+
+If a photo is yours and the credit is wrong, [let us know](#contact).` }
 };
-function openInfo(key){ const [t, ps] = INFO[key]; const p = $('panel'); p.textContent = ''; const h = el('h3', '', t); const x = el('button', 'textbtn', 'Close'); x.type = 'button'; x.onclick = () => $('ov').classList.remove('on'); h.appendChild(x); p.appendChild(h); ps.forEach(s => p.appendChild(el('p', '', s))); $('ov').classList.add('on'); x.focus(); }
-document.querySelectorAll('[data-info]').forEach(b => b.onclick = () => openInfo(b.dataset.info));
+function renderInfo(key){
+  const info = INFO[key], pg = $('pg-info'); pg.textContent = '';
+  document.title = info.title + ' · RoadStar';
+  const c = el('div', 'n-container'); pg.appendChild(c);
+  const art = el('article', 'n-article n-info');
+  art.appendChild(el('h1', 'd-l', info.title));
+  if (info.dek) art.appendChild(el('p', 'dek body-l', info.dek));
+  if (info.updated) art.appendChild(el('p', 'caption muted n-updated', 'Last updated ' + info.updated));
+  const body = el('div', 'n-body'); renderBlocks(mdToBlocks(info.md), body); art.appendChild(body);
+  c.appendChild(art);
+}
 
 // ---------- writer's desk: roles, profiles, templates, editor, review workflow ----------
 // Roles come from how RoadStar is shared: Contributor = writer, Editor = editor, owner = owner.
@@ -1484,6 +1681,7 @@ function route(){
   else if (h.indexOf('ten-tenths') === 0) { current = 'game'; show('pg-game', 'game'); document.title = 'Ten Tenth’s · RoadStar';
     const sub = h.slice(11); if (window.TT) { if (sub === 'board' || sub === 'archive' || sub === 'how') window.TT.openPanel(sub === 'archive' ? 'arch' : sub); } }
   else if (h === 'crossword') { current = 'cross'; show('pg-cross', 'puzzle'); renderCross(); }
+  else if (Object.prototype.hasOwnProperty.call(INFO, h)) { current = 'info:' + h; show('pg-info'); renderInfo(h); }
   else if (window.CMS && window.CMS.route(h)) { /* staff pages */ }
   else if (MODULES.some(m => (modResult = m.route(h)))) { if (modResult === 'stay') return; }
   else { current = 'front'; show('pg-front'); renderFront(); }
@@ -1495,6 +1693,7 @@ function rerender(){
   else if (current.indexOf('story:') === 0) renderStory(current.slice(6));
   else if (current.indexOf('author:') === 0) renderAuthor(current.slice(7));
   else if (current.indexOf('tag:') === 0) renderTag(current.slice(4));
+  else if (current.indexOf('info:') === 0) { /* fixed text, nothing to refresh */ }
   else if (window.CMS) window.CMS.rerender(current);
 }
 if (LIVE_URLS) {
