@@ -68,3 +68,9 @@ Pages have real addresses: `/story/<slug>`, `/news`, `/reviews`, `/opinion`, `/f
 | `vercel.json` | Page addresses, and `noindex` until launch |
 
 Search engines are still told not to index the site (`noindex` in `index.html` and `vercel.json`). Remove both lines when real stories are in and you want Google to find the site.
+
+## Google AdSense
+
+- The AdSense code for `ca-pub-4327412662479506` is in the `<head>` of `index.html`. Every page on the site is that one file, so every page has it.
+- `ads.txt` (at roadstarjournal.com/ads.txt) lists the same publisher ID, as AdSense asks.
+- Before asking AdSense to review the site: replace the sample stories with real ones, write the Privacy, Terms and Contact text (the privacy policy must say Google and other vendors use ad cookies), and remove the `noindex` lines (in `index.html` and `vercel.json`) so the site is public.

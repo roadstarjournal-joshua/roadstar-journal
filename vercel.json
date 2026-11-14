@@ -24,6 +24,15 @@
           "value": "noindex, nofollow"
         }
       ]
+    },
+    {
+      "source": "/(ads|robots).txt",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "text/plain; charset=utf-8"
+        }
+      ]
     }
   ]
 }

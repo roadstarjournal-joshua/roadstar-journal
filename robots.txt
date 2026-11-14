@@ -1,0 +1,3 @@
+# RoadStar Journal
+User-agent: *
+Disallow: /api/
