@@ -2,7 +2,7 @@
 :root{
   --showroom-white:#FFFFFF; --carbon-black:#000000; --taillight-red:#AD0304; --asphalt:#1C1C1E; --steel:#6B6E73; --chrome:#C9CBD0; --smoke:#F2F2F4;
   --bg:#FFFFFF; --surface:#F2F2F4; --ink:#000000; --ink-muted:#6B6E73; --hair:#C9CBD0; --border:#6B6E73; --accent:#AD0304;
-  --glass:rgba(0,0,0,.6); --radius-sm:8px; --radius-md:16px; --radius-lg:24px; --radius-xl:32px;
+  --glass:rgba(0,0,0,.6); --radius-sm:0; --radius-md:0; --radius-lg:0; --radius-xl:0; --page-pad:clamp(14px,2.2vw,28px);
   --font-sans:"Montserrat","Helvetica Neue",Arial,sans-serif;
   /* layout: a 1200px news grid under a logo masthead; one lead story, then section rows; game and crossword are pages in the same frame */
   color-scheme:light;
@@ -15,7 +15,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 a{color:inherit}
 :focus-visible{outline:2px solid var(--ink);outline-offset:3px}
 [hidden]{display:none!important}
-.n-container{width:100%;max-width:1440px;margin:0 auto;padding:0 clamp(16px,3.5vw,48px)}
+.n-container{width:100%;max-width:1600px;margin:0 auto;padding:0 var(--page-pad)}
 .label{font:600 12px/16px var(--font-sans);letter-spacing:.06em;text-transform:uppercase}
 .caption{font:500 12px/16px var(--font-sans)}
 .muted{color:var(--ink-muted)}
@@ -66,11 +66,11 @@ main{flex:1}
 .page{padding-bottom:64px}
 
 /* type */
-.d-xl{font:italic 900 64px/1 var(--font-sans);letter-spacing:-.02em;margin:0;text-wrap:balance}
-.d-l{font:italic 900 48px/1.05 var(--font-sans);letter-spacing:-.02em;margin:0;text-wrap:balance}
-.h1{font:italic 800 36px/1.1 var(--font-sans);letter-spacing:-.01em;margin:0;text-wrap:balance}
-.h2{font:italic 800 28px/1.15 var(--font-sans);letter-spacing:-.01em;margin:0;text-wrap:balance}
-.h3{font:700 22px/1.25 var(--font-sans);margin:0;text-wrap:balance}
+.d-xl{font:italic 900 64px/1 var(--font-sans);letter-spacing:-.02em;margin:0;text-wrap:pretty}
+.d-l{font:italic 900 48px/1.05 var(--font-sans);letter-spacing:-.02em;margin:0;text-wrap:pretty}
+.h1{font:italic 800 36px/1.1 var(--font-sans);letter-spacing:-.01em;margin:0;text-wrap:pretty}
+.h2{font:italic 800 28px/1.15 var(--font-sans);letter-spacing:-.01em;margin:0;text-wrap:pretty}
+.h3{font:700 22px/1.25 var(--font-sans);margin:0;text-wrap:pretty}
 .body-l{font-size:18px;line-height:30px}
 .body-s{font-size:14px;line-height:22px}
 @media (max-width:640px){.d-xl{font-size:40px}.d-l{font-size:32px}.h1{font-size:28px}.h2{font-size:24px}.h3{font-size:20px}}
@@ -126,8 +126,9 @@ main{flex:1}
 @media (max-width:760px){.n-play{grid-template-columns:1fr}.n-play canvas{aspect-ratio:16/10;min-height:0}.n-play .pad{padding:24px}}
 
 /* article */
-.n-article{max-width:760px;margin:0 auto;padding:32px 0 0}
-.n-article .dek{margin:16px 0 0;color:#2b2c2f}
+.n-article{max-width:1120px;margin:0 auto;padding:32px 0 0}
+.n-article .dek{margin:16px 0 0;color:#2b2c2f;max-width:760px}
+.n-article .n-body,.n-article .n-tags{max-width:760px}
 .n-info .n-updated{margin:14px 0 0}
 .n-info .n-body h2{font-size:24px;margin-top:32px}
 .n-hero{margin:28px 0 8px}
@@ -157,6 +158,11 @@ main{flex:1}
 
 
 
+/* Straight edges: no rounded corners anywhere on the site (photos, pills, buttons, cards, the game).
+   Only true circles stay round: profile pictures and small status dots. */
+*,*::before,*::after{border-radius:0 !important}
+.avatar,.st-changes::before,.checks .ic{border-radius:50% !important}
+
 /* story blocks: photos can wrap the text, specs sit beside it, the verdict closes a review */
 .n-body .fig{margin:32px 0}
 .n-body .fig img{display:block;width:100%;height:auto;border-radius:var(--radius-md)}
@@ -164,7 +170,7 @@ main{flex:1}
 .n-body figcaption .cap{color:#2b2c2f}
 .n-body .lay-left{float:left;width:min(46%,340px);margin:6px 28px 16px 0}
 .n-body .lay-right{float:right;width:min(46%,320px);margin:6px 0 16px 28px}
-.n-body .lay-full{width:min(1120px,calc(100vw - 48px));margin-left:50%;transform:translateX(-50%)}
+.n-body .lay-full{width:min(1120px,calc(100vw - 2 * var(--page-pad)))}
 .n-body .lay-full img{border-radius:var(--radius-lg)}
 .n-body h2,.n-body .lay-wide,.n-body .lay-full,.n-body .gal-wrap,.n-body .b-verdict,.n-body hr{clear:both}
 .n-body::after{content:"";display:table;clear:both}
