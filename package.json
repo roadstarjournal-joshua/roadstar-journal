@@ -3,9 +3,12 @@
   "private": true,
   "type": "module",
   "description": "roadstarjournal.com: static site plus server functions in api/ (Neon database, Neon Auth sign-in, Vercel Blob photos).",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.0",
+    "@vercel/analytics": "^2.0.1",
     "@vercel/blob": "^2.0.0"
   }
 }
