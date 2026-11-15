@@ -4,7 +4,7 @@
 import { sql, ensureSchema } from './_lib/db.js';
 
 const PAGES = ['/', '/news', '/reviews', '/opinion', '/features', '/ten-tenths', '/crossword',
-  '/about', '/contact', '/terms', '/privacy', '/credits'];
+  '/newsletter', '/newsletter-builder', '/about', '/contact', '/terms', '/privacy', '/credits'];
 const xmlEsc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const day = ms => new Date(ms).toISOString().slice(0, 10);
 

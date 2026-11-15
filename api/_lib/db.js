@@ -4,6 +4,7 @@
 import './env.js';
 import { neon } from '@neondatabase/serverless';
 import { SEED } from './seed.js';
+import { UPDATES } from './updates.js';
 
 let client = null;
 export function sql() {
@@ -37,12 +38,30 @@ export function ensureSchema() {
         granted_by text,
         granted_at timestamptz not null default now()
       )`;
+      await q`create table if not exists rs_subscribers (
+        email text primary key,
+        newsletter boolean not null default false,
+        accounts boolean not null default false,
+        status text not null default 'subscribed',
+        first_at timestamptz not null default now(),
+        updated_at timestamptz not null default now(),
+        consents jsonb not null default '[]'::jsonb
+      )`;
+      await q`alter table rs_subscribers add column if not exists games boolean not null default false`;
       const seeded = await q`select 1 as ok from rs_docs where path = 'meta/seeded'`;
       if (!seeded.length) {
         for (const op of SEED) {
           await q`insert into rs_docs (path, parent, data) values (${op.path}, ${parentOf(op.path)}, ${JSON.stringify(op.data)}::jsonb) on conflict (path) do nothing`;
         }
         await q`insert into rs_docs (path, parent, data) values ('meta/seeded', 'meta', ${JSON.stringify({ at: Date.now(), samples: SEED.length })}::jsonb) on conflict (path) do nothing`;
+      }
+      // One-time content updates (updates.js), each recorded so it runs once.
+      for (const u of UPDATES) {
+        const mark = 'meta/update-' + u.id;
+        const done = await q`select 1 as ok from rs_docs where path = ${mark}`;
+        if (done.length) continue;
+        await u.run(q);
+        await q`insert into rs_docs (path, parent, data) values (${mark}, 'meta', ${JSON.stringify({ at: Date.now() })}::jsonb) on conflict (path) do nothing`;
       }
     })().catch(e => { ready = null; throw e; });
   }

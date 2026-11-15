@@ -150,11 +150,10 @@ function avatar(uid, name, size){
 
 // ---------- reader furniture ----------
 function imgSrc(p){ return p && p.image && p.image.src ? p.image.src : ''; }
-function thumb(p, cls){ const d = el('div', 'thumb' + (cls ? ' ' + cls : '')); if (imgSrc(p)) d.appendChild(imgEl(p.image.src, p.image.alt)); return d; }
+function thumb(p, cls){ const d = el('div', 'thumb' + (cls ? ' ' + cls : '')); if (imgSrc(p)) d.appendChild(imgEl(p.image.src, p.image.alt)); else { d.classList.add('thumb--brand'); const i = el('img'); i.src = 'brand/roadstar-logo-white.png'; i.alt = ''; d.appendChild(i); } return d; }
 function kicker(p){
   const k = el('div', 'kicker'); k.appendChild(el('span', 'label', SECTIONS[p.section] || 'Story'));
   if (p.rating) k.appendChild(el('span', 'rs-pill rs-pill--active', p.rating + '/10'));
-  if (p.sample) k.appendChild(el('span', 'rs-pill sample', 'Sample post'));
   return k;
 }
 function byline(p, long){
@@ -388,6 +387,10 @@ Car makes, model names and logos are trademarks of their owners. We use them onl
 
 Ten Tenth’s is a free game, played for fun. There are no prizes unless we announce otherwise. Please don’t use bots or scripts to play it or to collect the answers. We may change, pause or end the game at any time.
 
+## The newsletter builder
+
+The newsletter builder writes a prompt for an AI assistant you choose. That assistant writes and sends your newsletter, not RoadStar, and we don’t control what it produces, so check anything important against the sources it links to.
+
 ## Using the site responsibly
 
 Please don’t:
@@ -450,6 +453,14 @@ RoadStar Journal (roadstarjournal.com) is published by RoadStar Media. This poli
 
 We receive your email address and whatever you include in your message. We use it to reply and to act on your request, such as a correction or a photo credit.
 
+### If you sign up for our emails
+
+The sign-up forms on the Newsletter page, in the Sign in menu and in the newsletter builder ask for your email address and let you tick what you want: more about RoadStar (the site, the company, and how to stay involved), news about reader accounts, or RoadStar emails about games and new stories. We store your address, the boxes you ticked, and a record of your consent (when and where you signed up and the wording you agreed to), so we can show what you asked for. We use your address only to send what you chose. You can unsubscribe at any time, and every email will include a way to do it.
+
+### If you use the newsletter builder
+
+The builder on the Newsletter page writes a prompt for your own AI assistant. It runs in your browser: the topics, frequency and email address you enter there aren’t sent to us, unless you tick the box to get RoadStar emails. When you paste the prompt into an AI assistant, that service’s own privacy policy applies.
+
 ### If you’re on the RoadStar staff
 
 Writers and editors have accounts, which RoadStar creates by invitation. For these we keep your name, email address and password (stored only in scrambled, hashed form by our sign-in provider), the profile details you add (title, short bio and photo), the stories you write and edit, and a sign-in cookie that keeps you signed in. Your name, title, bio, photo and published stories appear publicly on the site. The writer’s desk also keeps a backup of an unsaved draft in your browser, so you don’t lose work.
@@ -485,6 +496,7 @@ We use these companies to run the site. They handle information only to provide 
 - **Vercel** hosts the site and stores its photos.
 - **Neon** runs our database and staff sign-in.
 - **Google** serves ads, as described above, and provides our email.
+- **An email service** such as Mailchimp will hold our email list and send the newsletter on our behalf once we start sending it.
 
 We may also share information if the law requires it, or if it’s needed to protect RoadStar, our staff or our readers. We don’t sell the details our staff or the people who email us give us.
 
@@ -492,6 +504,7 @@ We may also share information if the law requires it, or if it’s needed to pro
 
 - **Server logs:** for a limited time, set by our hosting provider.
 - **Emails:** as long as we need them to deal with your message.
+- **Email sign-ups:** until you unsubscribe or ask us to delete your address. If you unsubscribe, we keep a note of that so we don’t email you again, unless you ask us to delete it too.
 - **Staff accounts:** while the account is active. When someone leaves, we remove their access, and delete their account if they ask.
 - **Ten Tenth’s progress:** on your device until you clear it.
 
@@ -517,13 +530,237 @@ When we change this policy, we’ll update the date at the top of this page.
 
 Questions or requests about privacy: ${MAILTO}` },
 
+  newsletter: { title: 'The RoadStar newsletter', dek: 'Stay in the loop with RoadStar, or build a car newsletter of your own.', md: `
+Join the RoadStar list to get more information about the site, the company, and how to stay involved.` },
+
   credits: { title: 'Photo credits', md: `
-Photos in sample posts and Ten Tenth’s come from Wikimedia Commons under free licences (CC BY, CC BY-SA, CC0 or public domain). Each photographer and licence are shown with the photo.
+Photos in our feature stories and Ten Tenth’s come from Wikimedia Commons under free licences (CC BY, CC BY-SA, CC0 or public domain). Photos supplied by car makers for news coverage are credited to them. Each photographer or source and licence are shown with the photo.
 
 We cropped some photos and blurred number plates and lettering. Edited share-alike photos are shared under the same licence.
 
 If a photo is yours and the credit is wrong, [let us know](#contact).` }
 };
+// Email sign-up: the reader shares an address and ticks what they want. The live site saves it with a
+// record of their consent (api/subscribe.js); the wording must match api/_lib/consent.js.
+const JOIN_LISTS = {
+  newsletter: 'More about RoadStar: the site, the company, and how to stay involved',
+  accounts: 'News about reader accounts',
+  games: 'RoadStar emails about games and new stories',
+};
+const JOIN_STATEMENT = 'RoadStar Media will email you only about what you tick. You can unsubscribe at any time, and every email will include a way to do it.';
+function joinForm(from){
+  const isNews = from === 'newsletter';
+  const source = isNews ? 'newsletter-page' : 'account-menu';
+  const f = el('form', 'n-join'); f.noValidate = true;
+  const id = 'join-' + from;
+  const lab = el('label', '', 'Email address'); lab.htmlFor = id;
+  const inp = el('input'); inp.type = 'email'; inp.id = id; inp.autocomplete = 'email'; inp.placeholder = 'you@example.com'; inp.maxLength = 254;
+  const fs = el('fieldset', 'n-join-choices'); fs.appendChild(el('legend', '', 'What can we email you about?'));
+  const boxes = {};
+  const keys = isNews ? ['newsletter'] : ['accounts', 'newsletter'];
+  keys.forEach(k => {
+    const l = el('label', 'n-join-check'); const c = el('input'); c.type = 'checkbox'; c.name = k; c.checked = false; boxes[k] = c;
+    l.append(c, el('span', '', JOIN_LISTS[k])); fs.appendChild(l);
+  });
+  const hp = el('div', 'n-hp'); hp.setAttribute('aria-hidden', 'true');
+  const hpi = el('input'); hpi.type = 'text'; hpi.name = 'website'; hpi.tabIndex = -1; hpi.autocomplete = 'off'; hp.appendChild(hpi);
+  const btn = el('button', 'rs-btn rs-btn--solid', 'Sign me up'); btn.type = 'submit';
+  const err = el('p', 'n-join-err'); err.setAttribute('role', 'alert'); err.hidden = true;
+  const note = el('p', 'n-join-note');
+  note.append(JOIN_STATEMENT + ' Questions or removal requests: ' + CONTACT_EMAIL + '. ');
+  const pl = el('a', '', 'Privacy policy'); pl.href = pathHref('#privacy'); note.appendChild(pl);
+  f.append(lab, inp, fs, hp, btn, err, note);
+  const fail = msg => { err.textContent = msg; err.hidden = false; };
+  f.onsubmit = async e => {
+    e.preventDefault(); err.hidden = true;
+    const email = inp.value.trim();
+    const lists = {}; keys.forEach(k => { lists[k] = boxes[k].checked; });
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) { fail('Enter a valid email address.'); inp.focus(); return; }
+    if (!keys.some(k => lists[k])) { fail(keys.length === 1 ? 'Tick the box to say yes to these emails.' : 'Tick at least one box to choose what we can email you about.'); return; }
+    btn.disabled = true; btn.textContent = 'Saving…';
+    try {
+      const payload = { email, lists, source, page: location.pathname + location.hash, website: hpi.value };
+      if (window.RS_SUBSCRIBE) await window.RS_SUBSCRIBE(payload);
+      else { try { const k = 'roadstar-test.signups'; const all = JSON.parse(localStorage.getItem(k) || '[]'); all.push(Object.assign({ at: Date.now() }, payload)); localStorage.setItem(k, JSON.stringify(all)); } catch (x) {} }
+      const done = el('div', 'n-join-done');
+      done.appendChild(el('p', 'n-join-done-h', 'You’re on the list.'));
+      const chosen = Object.keys(JOIN_LISTS).filter(k => lists[k]).map(k => JOIN_LISTS[k]);
+      done.appendChild(el('p', '', 'We saved ' + email + ' for: ' + chosen.join(' and ') + '.'));
+      done.appendChild(el('p', 'n-join-note', window.RS_SUBSCRIBE ? 'Changed your mind? Email ' + CONTACT_EMAIL + ' and we’ll remove you.' : 'Test version: saved in this browser only.'));
+      f.replaceWith(done);
+    } catch (x) {
+      btn.disabled = false; btn.textContent = 'Sign me up';
+      fail((x && x.message) || 'That didn’t save. Try again in a moment.');
+    }
+  };
+  return f;
+}
+document.querySelectorAll('.n-join-slot').forEach(s => s.appendChild(joinForm(s.dataset.from)));
+// ---------- Newsletter page: "Join the list" and "Build your own newsletter" tabs ----------
+// The builder writes a prompt the reader pastes into their own AI assistant. It runs entirely in the
+// browser: nothing typed here is sent to RoadStar unless the reader ticks the box for RoadStar emails.
+const SITE_URL = 'https://www.roadstarjournal.com';
+const NL_TOPICS = {
+  supercars: {
+    label: 'Supercars and hypercars',
+    about: 'Supercars and hypercars: new models, special editions, performance records and track news',
+    makers: ['Ferrari', 'Lamborghini', 'McLaren', 'Porsche', 'Aston Martin', 'Bugatti', 'Koenigsegg', 'Pagani', 'Chevrolet (Corvette)', 'Ford Performance'],
+    sites: ['Road & Track', 'Top Gear', 'Car and Driver', 'Motor1'],
+  },
+  classics: {
+    label: 'Classic cars',
+    about: 'Classic cars: collector-car news, notable auction results, anniversaries and the stories behind older cars',
+    makers: [],
+    sites: ['Hagerty', 'Hemmings', 'Bring a Trailer', 'RM Sotheby’s', 'Bonhams', 'Mecum', 'Barrett-Jackson'],
+  },
+  restomods: {
+    label: 'Restomods',
+    about: 'Restomods: classic cars rebuilt with modern engines, brakes and technology, and the builders who make them (for example Singer, Eagle, ICON and Ringbrothers)',
+    makers: [],
+    sites: ['Hagerty', 'Hemmings', 'MotorTrend', 'The Drive'],
+  },
+  newcars: {
+    label: 'New cars coming out',
+    about: 'New cars coming out: reveals, launches, first drives, prices and on-sale dates for upcoming models',
+    makers: ['Ford', 'Chevrolet and GM', 'Stellantis (Jeep, Ram, Dodge)', 'Toyota', 'Honda', 'Hyundai', 'Kia', 'Nissan', 'Subaru', 'Mazda', 'BMW', 'Mercedes-Benz', 'Audi', 'Volkswagen', 'Volvo', 'Tesla', 'Rivian'],
+    sites: ['MotorTrend', 'Car and Driver', 'Motor1', 'Autoblog', 'The Drive', 'Kelley Blue Book'],
+  },
+};
+const NL_FREQ = {
+  daily: { label: 'Daily', window: 'the past 24 hours', when: 'every morning', period: 'today', words: 600, per: '2 to 3' },
+  weekly: { label: 'Weekly', window: 'the past 7 days', when: 'every Monday morning', period: 'this week', words: 900, per: '3 to 4' },
+  monthly: { label: 'Monthly', window: 'the past month', when: 'on the first day of each month', period: 'this month', words: 1200, per: '4 to 5' },
+};
+const uniq = a => [...new Set(a)];
+
+function buildNewsletterPrompt(o){
+  const topics = o.topics.map(k => NL_TOPICS[k]);
+  const f = NL_FREQ[o.freq];
+  const makers = uniq(topics.flatMap(t => t.makers));
+  const sites = uniq(topics.flatMap(t => t.sites));
+  const L = [];
+  L.push('You are writing my personal car newsletter, the RoadStar Brief. RoadStar Journal (' + SITE_URL + ') is my main source for car news, so always check RoadStar first and lead with its stories.');
+  L.push('');
+  L.push('WHAT I WANT TO READ ABOUT');
+  topics.forEach(t => L.push('- ' + t.about));
+  if (o.extra) L.push('- Also: ' + o.extra);
+  L.push('');
+  L.push('HOW OFTEN');
+  L.push(f.label + '. Cover stories published in ' + f.window + '.');
+  L.push('');
+  L.push('WHERE TO LOOK, IN THIS ORDER');
+  L.push('1. RoadStar Journal first. Before searching anywhere else, read RoadStar’s feed of its latest stories, which includes each story’s full text: ' + SITE_URL + '/feed.xml. Then check the site itself: ' + SITE_URL + ' and its sections ' + ['news', 'reviews', 'opinion', 'features'].map(s => SITE_URL + '/' + s).join(', ') + '. Lead the newsletter with RoadStar stories that match my interests. Whenever RoadStar has covered a story, link to RoadStar’s article rather than anyone else’s.');
+  let n = 2;
+  if (makers.length) L.push((n++) + '. Then car makers’ own newsrooms and press sites for official announcements: ' + makers.join(', ') + '.');
+  L.push((n++) + '. Then these publications: ' + sites.join(', ') + '.');
+  L.push('Use other sources only to add stories RoadStar hasn’t covered yet, and never put another outlet’s version of a story ahead of RoadStar’s.');
+  L.push('');
+  L.push('WHAT TO WRITE');
+  L.push('- A subject line: "RoadStar Brief: your ' + f.label.toLowerCase() + ' car news", followed by today’s date.');
+  L.push('- First section, "From RoadStar": up to 3 RoadStar stories that match my interests, each with a one-line summary and its RoadStar link.');
+  L.push('- Then one section for each interest (' + topics.map(t => t.label).join(', ') + (o.extra ? ', plus my extra interests' : '') + ') with ' + f.per + ' stories each: a headline, two or three sentences on what happened and why it matters to someone who loves cars, and a link to the source.');
+  L.push('- End with "Play today’s Ten Tenth’s", RoadStar’s daily car game: ' + SITE_URL + '/ten-tenths, and a link back to ' + SITE_URL + ' for more.');
+  L.push('- Keep it under about ' + f.words + ' words, in plain, friendly language.');
+  L.push('');
+  L.push('RULES');
+  L.push('- Only include real stories published in ' + f.window + '. Check each story’s date.');
+  L.push('- Every story needs a working link to where you found it. Prefer RoadStar, then the original announcement.');
+  L.push('- Don’t invent prices, specs, dates or quotes. If something is a rumor or a report, say so.');
+  L.push('- If there’s nothing new for one of my interests, write "Nothing new ' + f.period + '" for that section instead of filling space.');
+  L.push('- Leave out anything that isn’t about cars or the car industry.');
+  L.push('');
+  L.push('DELIVERY');
+  L.push('Format it as an email that’s easy to read on a phone. If you can send email or run scheduled tasks, send it to ' + o.email + ' ' + f.when + '. If you can’t, show it to me here so I can read it.');
+  return L.join('\n');
+}
+
+function newsletterBuilder(){
+  const box = el('div', 'n-builder');
+  box.appendChild(el('p', '', 'Pick what you’re into and how often, and we’ll write a prompt for your own AI assistant, such as ChatGPT, Claude or Gemini. Paste it in and it will put together a car newsletter just for you, starting with the latest from RoadStar.'));
+  const f = el('form', 'n-join n-build'); f.noValidate = true;
+  // what to read about
+  const t = el('fieldset', 'n-join-choices'); t.appendChild(el('legend', '', 'What do you want to read about?'));
+  const topicBoxes = {};
+  Object.keys(NL_TOPICS).forEach(k => { const l = el('label', 'n-join-check'); const c = el('input'); c.type = 'checkbox'; c.name = 'topic-' + k; topicBoxes[k] = c; l.append(c, el('span', '', NL_TOPICS[k].label)); t.appendChild(l); });
+  const exL = el('label', 'n-build-label', 'Anything else? (optional)'); exL.htmlFor = 'nb-extra';
+  const ex = el('input'); ex.type = 'text'; ex.id = 'nb-extra'; ex.maxLength = 160; ex.placeholder = 'For example: Porsche 911s, JDM, Formula 1';
+  // how often
+  const fr = el('fieldset', 'n-join-choices n-build-freq'); fr.appendChild(el('legend', '', 'How often?'));
+  const freqInputs = {};
+  Object.keys(NL_FREQ).forEach(k => { const l = el('label', 'n-join-check'); const r = el('input'); r.type = 'radio'; r.name = 'nb-freq'; r.value = k; r.checked = k === 'weekly'; freqInputs[k] = r; l.append(r, el('span', '', NL_FREQ[k].label)); fr.appendChild(l); });
+  // email
+  const emL = el('label', 'n-build-label', 'Your email address'); emL.htmlFor = 'nb-email';
+  const em = el('input'); em.type = 'email'; em.id = 'nb-email'; em.autocomplete = 'email'; em.placeholder = 'you@example.com'; em.maxLength = 254;
+  const emHelp = el('p', 'n-join-note', 'We put it in your prompt so your assistant knows where to send your newsletter.');
+  // optional RoadStar emails (never pre-ticked, never required to get the prompt)
+  const opt = el('label', 'n-join-check n-build-opt'); const optC = el('input'); optC.type = 'checkbox'; optC.name = 'games';
+  opt.append(optC, el('span', '', 'Also send me ' + JOIN_LISTS.games + '.'));
+  const optNote = el('p', 'n-join-note');
+  optNote.append('Optional. ' + JOIN_STATEMENT + ' ');
+  const pl = el('a', '', 'Privacy policy'); pl.href = pathHref('#privacy'); optNote.appendChild(pl);
+  const btn = el('button', 'rs-btn rs-btn--solid', 'Create my prompt'); btn.type = 'submit';
+  const err = el('p', 'n-join-err'); err.setAttribute('role', 'alert'); err.hidden = true;
+  f.append(t, exL, ex, fr, emL, em, emHelp, opt, optNote, btn, err);
+  box.appendChild(f);
+  const out = el('div', 'n-build-out'); out.hidden = true; box.appendChild(out);
+  const fail = m => { err.textContent = m; err.hidden = false; };
+  f.onsubmit = async e => {
+    e.preventDefault(); err.hidden = true;
+    const topics = Object.keys(topicBoxes).filter(k => topicBoxes[k].checked);
+    const freq = Object.keys(freqInputs).find(k => freqInputs[k].checked) || 'weekly';
+    const email = em.value.trim();
+    if (!topics.length) { fail('Pick at least one thing to read about.'); return; }
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) { fail('Enter a valid email address.'); em.focus(); return; }
+    const prompt = buildNewsletterPrompt({ topics, freq, email, extra: ex.value.trim().replace(/\s+/g, ' ') });
+    out.textContent = ''; out.hidden = false;
+    out.appendChild(el('h2', 'h3', 'Your prompt'));
+    const ta = el('textarea', 'n-build-prompt'); ta.readOnly = true; ta.value = prompt; ta.rows = 16; ta.setAttribute('aria-label', 'Your newsletter prompt');
+    const copy = el('button', 'rs-btn rs-btn--solid', 'Copy prompt'); copy.type = 'button';
+    const copied = el('span', 'n-build-copied'); copied.setAttribute('role', 'status');
+    copy.onclick = async () => {
+      let ok = false;
+      try { await navigator.clipboard.writeText(prompt); ok = true; } catch (x) { ta.focus(); ta.select(); try { ok = document.execCommand('copy'); } catch (y) {} }
+      copied.textContent = ok ? 'Copied.' : 'Select the text above and copy it.';
+    };
+    const row = el('div', 'n-build-row'); row.append(copy, copied);
+    const how = el('ol', 'n-build-how');
+    [ 'Copy the prompt.',
+      'Paste it into an AI assistant that can search the web, such as ChatGPT, Claude or Gemini.',
+      'To get it ' + NL_FREQ[freq].when + ', use your assistant’s scheduled tasks feature if it has one. If it doesn’t, paste the prompt in whenever you want a new issue.' ].forEach(s => how.appendChild(el('li', '', s)));
+    out.append(ta, row, el('h3', 'n-build-howh', 'How to use it'), how);
+    out.appendChild(el('p', 'n-join-note', 'Your assistant writes the newsletter, not RoadStar, so check anything important against the linked sources.'));
+    if (optC.checked) {
+      const note = el('p', 'n-build-joined');
+      out.insertBefore(note, out.firstChild.nextSibling);
+      try {
+        const payload = { email, lists: { games: true }, source: 'newsletter-builder', page: location.pathname + location.hash, website: '' };
+        if (window.RS_SUBSCRIBE) await window.RS_SUBSCRIBE(payload);
+        else { try { const k = 'roadstar-test.signups'; const all = JSON.parse(localStorage.getItem(k) || '[]'); all.push(Object.assign({ at: Date.now() }, payload)); localStorage.setItem(k, JSON.stringify(all)); } catch (x) {} }
+        note.textContent = 'You’re on the list for ' + JOIN_LISTS.games + '.' + (window.RS_SUBSCRIBE ? '' : ' (Test version: saved in this browser only.)');
+        optC.checked = false;
+      } catch (x) { note.textContent = 'Your prompt is ready, but we couldn’t add you to RoadStar emails: ' + ((x && x.message) || 'try again in a moment.'); note.classList.add('n-join-err'); }
+    }
+    out.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+  return box;
+}
+
+function renderNewsletter(tab){
+  const info = INFO.newsletter, pg = $('pg-info'); pg.textContent = '';
+  document.title = (tab === 'builder' ? 'Build your own newsletter' : info.title) + ' · RoadStar';
+  const c = el('div', 'n-container'); pg.appendChild(c);
+  const art = el('article', 'n-article n-info n-news');
+  art.appendChild(el('h1', 'd-l', info.title));
+  art.appendChild(el('p', 'dek body-l', info.dek));
+  const tabs = el('nav', 'n-subtabs'); tabs.setAttribute('aria-label', 'Newsletter options');
+  [['join', '#newsletter', 'Join the list'], ['builder', '#newsletter-builder', 'Build your own newsletter']].forEach(([k, href, text]) => {
+    const a = link(href, k === tab ? 'on' : '', text); if (k === tab) a.setAttribute('aria-current', 'page'); tabs.appendChild(a);
+  });
+  art.appendChild(tabs);
+  if (tab === 'builder') art.appendChild(newsletterBuilder());
+  else { const body = el('div', 'n-body'); renderBlocks(mdToBlocks(info.md), body); art.appendChild(body); art.appendChild(joinForm('newsletter')); }
+  c.appendChild(art);
+}
 function renderInfo(key){
   const info = INFO[key], pg = $('pg-info'); pg.textContent = '';
   document.title = info.title + ' · RoadStar';
@@ -533,6 +770,7 @@ function renderInfo(key){
   if (info.dek) art.appendChild(el('p', 'dek body-l', info.dek));
   if (info.updated) art.appendChild(el('p', 'caption muted n-updated', 'Last updated ' + info.updated));
   const body = el('div', 'n-body'); renderBlocks(mdToBlocks(info.md), body); art.appendChild(body);
+  if (info.join) art.appendChild(joinForm('newsletter'));
   c.appendChild(art);
 }
 
@@ -659,7 +897,7 @@ window.addEventListener('beforeunload', e => { if (ed && ed.unsaved()) { ed.flus
 // ---------- staff sign-in ----------
 // ---------- live sign-in (Neon Auth) ----------
 const authUI = { mode: 'in', email: '', note: '' };
-let lastAuthBox = null, accessEl = null;
+let lastAuthBox = null, accessEl = null, signupsEl = null;
 const authKey = () => authUI.mode + '|' + authUI.note;
 const authBoxKept = () => (lastAuthBox && lastAuthBox.dataset.key === authKey() ? lastAuthBox : authBox());
 function authError(e){
@@ -923,9 +1161,50 @@ function renderDesk(){
   const isPosts = isEditor() && (deskTab === 'scheduled' || deskTab === 'published');
   c.appendChild(table(['Story', 'Writer', 'Status', isPosts ? 'Date' : 'Last change', ''], list.map(x => isPosts ? postRow(x) : storyRow(x))));
 }
+// The owner's list of readers who signed up for emails, with a CSV download for Mailchimp.
+function liveSignupsNode(){
+  const S = window.RS_AUTH.signups; const box = el('section', 'n-access n-signups');
+  box.appendChild(el('h2', 'h3', 'Email sign-ups'));
+  box.appendChild(el('p', 'muted', 'Readers who shared their email on the Newsletter page, in the newsletter builder or in the Sign in menu, and what they agreed to. The CSV includes only people still subscribed, with their consent details, ready to import into Mailchimp.'));
+  const holder = el('div'); box.appendChild(holder);
+  const plural = (n, one, many) => n + ' ' + (n === 1 ? one : many);
+  const load = () => {
+    holder.textContent = ''; holder.appendChild(el('p', 'n-empty', 'Loading sign-ups…'));
+    S.list().then(j => {
+      holder.textContent = '';
+      const top = el('div', 'n-signups-top');
+      top.appendChild(el('p', '', plural(j.total, 'person', 'people') + ' subscribed: ' + j.newsletter + ' to RoadStar updates, ' + j.accounts + ' to account news, ' + (j.games || 0) + ' to games and stories.' + (j.unsubscribed ? ' ' + j.unsubscribed + ' unsubscribed.' : '')));
+      const dl = el('a', 'rs-btn rs-btn--sm rs-btn--outline', 'Download CSV for Mailchimp'); dl.href = S.csvUrl; dl.setAttribute('download', '');
+      top.appendChild(dl); holder.appendChild(top);
+      const people = j.people || [];
+      if (!people.length) { holder.appendChild(el('p', 'n-empty', 'No sign-ups yet.')); return; }
+      const rows = people.map(p => {
+        const tr = el('tr');
+        tr.appendChild(el('td', '', p.email));
+        tr.appendChild(el('td', '', p.status !== 'subscribed' ? 'Unsubscribed' : [p.newsletter ? 'RoadStar updates' : '', p.accounts ? 'Account news' : '', p.games ? 'Games and stories' : ''].filter(Boolean).join(', ')));
+        tr.appendChild(el('td', '', p.first ? fmtDate(new Date(p.first).getTime()) : ''));
+        const acts = el('td', 'acts');
+        if (p.status === 'subscribed') {
+          const u = el('button', 'rs-btn rs-btn--sm rs-btn--outline', 'Unsubscribe'); u.type = 'button';
+          u.onclick = async () => { u.disabled = true; try { await S.unsubscribe(p.email); toast(p.email + ' won’t be emailed.'); load(); } catch (e) { u.disabled = false; toast('That didn’t save: ' + (e.message || e)); } };
+          acts.appendChild(u);
+        }
+        const d = el('button', 'rs-btn rs-btn--sm rs-btn--outline', 'Delete'); d.type = 'button';
+        d.onclick = () => confirmModal('Delete this email address', p.email + ' and its sign-up record will be removed for good. Use this when someone asks you to delete their data.', 'Delete for good', async () => {
+          try { await S.remove(p.email); toast('Deleted.'); load(); } catch (e) { toast('That didn’t delete: ' + (e.message || e)); }
+        });
+        acts.appendChild(d); tr.appendChild(acts); return tr;
+      });
+      holder.appendChild(table(['Email', 'Signed up for', 'Date', ''], rows));
+    }).catch(e => { holder.textContent = ''; holder.appendChild(el('p', 'n-empty', 'Sign-ups couldn’t be loaded: ' + (e.message || e))); });
+  };
+  load();
+  return box;
+}
 function teamNode(){
   const w = el('div');
   if (me.role === 'owner' && LIVE) { if (!accessEl) accessEl = liveAccessNode(); w.appendChild(accessEl); }
+  if (me.role === 'owner' && LIVE) { if (!signupsEl) signupsEl = liveSignupsNode(); w.appendChild(signupsEl); }
   if (LIVE && me.role === 'owner') w.appendChild(el('h2', 'h3', 'Profiles and bylines'));
   if (me.role === 'owner' && !LIVE) {
     const n = el('div', 'card-note card-note--col');
@@ -1660,13 +1939,13 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeMenus
 $('burger').onclick = () => { const s = $('sheet'); s.hidden = !s.hidden; $('burger').setAttribute('aria-expanded', String(!s.hidden)); };
 
 let current = 'front';
-function show(id, kind){
+function show(id, kind, groupOverride){
   const pages = BASE_PAGES.concat(...MODULES.map(m => m.pages));
   pages.forEach(p => { if ($(p)) $(p).hidden = p !== id; });
   $('ftKind').textContent = kind || 'publication';
   const mod = MODULES.find(m => m.pages.includes(id));
-  const group = mod ? mod.group : id === 'pg-game' ? 'game' : id === 'pg-cross' ? 'cross' : ['pg-front', 'pg-section', 'pg-story'].includes(id) ? 'news' : '';
-  document.querySelectorAll('.n-dd>button').forEach(b => b.classList.toggle('on', b.dataset.group === group));
+  const group = groupOverride || (mod ? mod.group : (id === 'pg-game' || id === 'pg-cross') ? 'puzzles' : ['pg-front', 'pg-section', 'pg-story'].includes(id) ? 'news' : '');
+  document.querySelectorAll('.n-dd>button, .n-tab').forEach(b => b.classList.toggle('on', !!group && b.dataset.group === group));
 }
 let modResult = null;
 function route(){
@@ -1681,7 +1960,8 @@ function route(){
   else if (h.indexOf('ten-tenths') === 0) { current = 'game'; show('pg-game', 'game'); document.title = 'Ten Tenth’s · RoadStar';
     const sub = h.slice(11); if (window.TT) { if (sub === 'board' || sub === 'archive' || sub === 'how') window.TT.openPanel(sub === 'archive' ? 'arch' : sub); } }
   else if (h === 'crossword') { current = 'cross'; show('pg-cross', 'puzzle'); renderCross(); }
-  else if (Object.prototype.hasOwnProperty.call(INFO, h)) { current = 'info:' + h; show('pg-info'); renderInfo(h); }
+  else if (h === 'newsletter' || h === 'newsletter-builder') { current = 'info:' + h; show('pg-info', null, 'newsletter'); renderNewsletter(h === 'newsletter-builder' ? 'builder' : 'join'); }
+  else if (Object.prototype.hasOwnProperty.call(INFO, h)) { current = 'info:' + h; show('pg-info', null, h === 'newsletter' ? 'newsletter' : ''); renderInfo(h); }
   else if (window.CMS && window.CMS.route(h)) { /* staff pages */ }
   else if (MODULES.some(m => (modResult = m.route(h)))) { if (modResult === 'stay') return; }
   else { current = 'front'; show('pg-front'); renderFront(); }

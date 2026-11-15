@@ -80,3 +80,10 @@ Search engines are still told not to index the site (`noindex` in `index.html` a
 - The site is open to search engines. Staff pages (`/staff`, `/desk`, the editor, profiles) send a `noindex` header so they're never listed.
 - `/sitemap.xml` (www.roadstarjournal.com/sitemap.xml) lists the public pages and every published story, built fresh from the database. Submit it once in Google Search Console.
 - `robots.txt` points search engines to the sitemap and keeps them out of `/api/`.
+- `/feed.xml` is an RSS feed of the latest 30 stories with their full text, for feed readers and for the AI assistants the newsletter builder's prompt sends to RoadStar first.
+
+## Email sign-ups
+
+- Readers sign up on the Newsletter page, in the newsletter builder and in the Sign in menu. Each sign-up saves the email, the boxes ticked and a record of the consent wording (`api/_lib/consent.js`).
+- The owner sees the list in **Writer's desk, Team, Email sign-ups**, with **Download CSV for Mailchimp**, Unsubscribe and Delete.
+- Before sending any email: add a mailing address (a P.O. box works) to the emails, and honor unsubscribes within 10 business days.

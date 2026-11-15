@@ -143,6 +143,8 @@
 
   // ---------- sign-in (used by the staff page) ----------
   function auth(path, body) { return post(API + '/auth?p=' + encodeURIComponent(path), body); }
+  // Email sign-up (newsletter and reader-account news): saves the address and the reader's choices.
+  window.RS_SUBSCRIBE = function (d) { return post(API + '/subscribe', d); };
   window.RS_AUTH = {
     now: function () { return state; },
     state: function () { return statePromise; },
@@ -153,6 +155,12 @@
     verify: function (email, otp) { return auth('email-otp/verify-email', { email: email, otp: otp }); },
     resetPassword: function (email, otp, password) { return auth('email-otp/reset-password', { email: email, otp: otp, password: password }); },
     signOut: function () { return auth('sign-out', {}); },
+    signups: {
+      list: function () { return fetchJSON(API + '/subscribers?fresh=' + Date.now()); },
+      csvUrl: API + '/subscribers?format=csv',
+      unsubscribe: function (email) { return post(API + '/subscribers', { action: 'unsubscribe', email: email }); },
+      remove: function (email) { return post(API + '/subscribers', { action: 'delete', email: email }); }
+    },
     team: {
       list: function () { return fetchJSON(API + '/team?fresh=' + Date.now()); },
       setRole: function (userId, role) { return post(API + '/team', { action: 'role', userId: userId, role: role }); },

@@ -2,9 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="robots" content="noindex">
+<base href="/">
 <link rel="icon" href="data:,">
-<script src="js/runtime-test.js"></script>
+<link rel="alternate" type="application/rss+xml" title="RoadStar Journal" href="/feed.xml">
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4327412662479506"
+     crossorigin="anonymous"></script>
+<script src="js/runtime-live.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>RoadStar</title>
 <meta name="description" content="Car news, reviews, opinion and features for drivers, plus Ten Tenth’s, a daily car game.">
@@ -27,28 +30,43 @@
           <a href="#features">Features<small>Longer stories</small></a>
         </div></div>
       
-      <div class="n-dd"><button type="button" aria-expanded="false" aria-controls="dd-game" data-group="game">Ten Tenth’s<svg viewBox="0 0 10 10" aria-hidden="true"><path d="M1 3l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></button>
-        <div class="n-ddmenu" id="dd-game" hidden>
+      <div class="n-dd"><button type="button" aria-expanded="false" aria-controls="dd-puzzles" data-group="puzzles">Puzzles<svg viewBox="0 0 10 10" aria-hidden="true"><path d="M1 3l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></button>
+        <div class="n-ddmenu" id="dd-puzzles" hidden>
+          <p class="n-ddhead label muted">Ten Tenth’s</p>
           <a href="#ten-tenths">Today’s lap<small>Name the car, then six rounds on its maker</small></a>
           <a href="#ten-tenths-board">Leaderboard</a>
           <a href="#ten-tenths-archive">Archive</a>
           <a href="#ten-tenths-how">How it works</a>
-        </div></div>
-      <div class="n-dd"><button type="button" aria-expanded="false" aria-controls="dd-cross" data-group="cross">Crossword<svg viewBox="0 0 10 10" aria-hidden="true"><path d="M1 3l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></button>
-        <div class="n-ddmenu" id="dd-cross" hidden>
+          <p class="n-ddhead label muted">Crossword</p>
           <a href="#crossword">The daily crossword<small>Coming soon</small></a>
         </div></div>
+      <a class="n-tab" href="#newsletter" data-group="newsletter">Newsletter</a>
     </nav>
     <div class="n-mast-r">
       <a class="rs-btn rs-btn--sm rs-btn--outline" href="#desk" id="deskLink" hidden>Writer’s desk</a>
+      <div class="n-dd n-acct"><button type="button" aria-expanded="false" aria-controls="dd-acct" data-group="account" aria-label="Sign in">
+          <span class="avatar n-acct-av" id="acctAv"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="9.2" r="4.2" fill="currentColor"/><path d="M3.8 21.5c1.3-4.3 4.5-6.6 8.2-6.6s6.9 2.3 8.2 6.6" fill="currentColor"/></svg></span>
+          <span class="n-acct-label">Sign in</span><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M1 3l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></button>
+        <div class="n-ddmenu n-acctmenu" id="dd-acct" hidden>
+          <p class="h3">Your RoadStar account</p>
+          <p class="n-acct-sub">Reader accounts are on the way. With one, you’ll be able to:</p>
+          <ul class="n-acct-list">
+            <li>Keep your Ten Tenth’s and puzzle history</li>
+            <li>Find car meets in your area</li>
+            <li>Choose and filter the stories you see</li>
+            <li>Manage your newsletter and settings</li>
+          </ul>
+          <div class="n-join-slot" data-from="account"></div>
+          <p class="caption muted n-acct-more"><a href="#about">Learn more about RoadStar</a></p>
+        </div></div>
       <button class="rs-btn rs-btn--sm rs-btn--outline n-burger" id="burger" aria-expanded="false" aria-controls="sheet">Menu</button>
     </div>
   </div>
   <div class="n-sheet" id="sheet" hidden><div class="n-container">
     <h4 class="label muted">News</h4><a href="#home">Front page</a><a href="#news">News</a><a href="#reviews">Reviews</a><a href="#opinion">Opinion</a><a href="#features">Features</a>
     
-    <h4 class="label muted">Ten Tenth’s</h4><a href="#ten-tenths">Today’s lap</a><a href="#ten-tenths-board">Leaderboard</a><a href="#ten-tenths-archive">Archive</a>
-    <h4 class="label muted">Crossword</h4><a href="#crossword">The daily crossword (coming soon)</a>
+    <h4 class="label muted">Puzzles</h4><a href="#ten-tenths">Ten Tenth’s: today’s lap</a><a href="#ten-tenths-board">Ten Tenth’s leaderboard</a><a href="#ten-tenths-archive">Ten Tenth’s archive</a><a href="#crossword">The daily crossword (coming soon)</a>
+    <h4 class="label muted">Newsletter</h4><a href="#newsletter">Get the RoadStar newsletter</a>
     <a href="#desk" id="deskLink2" hidden>Writer’s desk</a>
   </div></div>
 </header>
